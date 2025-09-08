@@ -62,6 +62,9 @@ void Conspire::initECS()
     auto c2 = Mana{};
     auto world = World{};
     world.addEntity(c1, c2);
+    world.addSystem([](Query<Mana, Health> manaQuery)
+                    { (void)manaQuery; });
+    world.runSystems();
 }
 
 void Conspire::mainLoop()
