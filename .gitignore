@@ -466,3 +466,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Compiled Shader files
+*.spv
