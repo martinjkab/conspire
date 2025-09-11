@@ -1,7 +1,5 @@
 #include "app.h"
 
-#include <GLFW/glfw3.h>
-#include <iostream>
 #include "ecs/world.h"
 #include <rendering/rendering.h>
 

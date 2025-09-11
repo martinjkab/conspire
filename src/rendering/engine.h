@@ -1,35 +1,37 @@
 #pragma once
 
 #define VK_USE_PLATFORM_WIN32_KHR
-#define GLFW_INCLUDE_VULKAN
+#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
-#include <vulkan/vulkan.h>
 #include <optional>
 #include <vector>
+#include <cstdlib>
+
+#define VK_CHECK(x)       \
+    do                    \
+    {                     \
+        VkResult err = x; \
+        if (err)          \
+        {                 \
+            std::abort(); \
+        }                 \
+    } while (0)
 
 extern const char *APP_NAME;
 extern const uint32_t WIDTH;
 extern const uint32_t HEIGHT;
 
-struct QueueFamilyIndices
+struct FrameData
 {
-    std::optional<uint32_t> graphicsFamily;
-    std::optional<uint32_t> presentFamily;
 
-    bool isComplete()
-    {
-        return graphicsFamily.has_value() && presentFamily.has_value();
-    }
+    VkCommandPool _commandPool;
+    VkCommandBuffer _mainCommandBuffer;
 };
 
-struct SwapChainSupportDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
-};
+constexpr unsigned int FRAME_OVERLAP = 2;
 
 class RenderEngine
 {
@@ -38,39 +40,34 @@ public:
     void mainLoop();
 
 private:
-    GLFWwindow *window;
-    VkInstance instance;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device;
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
-    VkSurfaceKHR surface;
-    VkSwapchainKHR swapChain;
-    std::vector<VkImage> swapChainImages;
-    std::vector<VkImageView> swapChainImageViews;
-    VkFormat swapChainImageFormat;
-    VkExtent2D swapChainExtent;
-    VkRenderPass renderPass;
-    VkPipelineLayout pipelineLayout;
-    VkPipeline graphicsPipeline;
-    std::vector<VkFramebuffer> swapChainFramebuffers;
+    FrameData _frames[FRAME_OVERLAP];
+    int frameNumber = 0;
+
+    FrameData &get_current_frame() { return _frames[frameNumber % FRAME_OVERLAP]; };
+
+    VkQueue _graphicsQueue;
+    uint32_t _graphicsQueueFamily;
+    GLFWwindow *_window;
+    VkInstance _instance;
+    VkDebugUtilsMessengerEXT _debugMessenger;
+    VkPhysicalDevice _gpu = VK_NULL_HANDLE;
+    VkDevice _device;
+    VkQueue _presentQueue;
+    VkSurfaceKHR _surface;
+    VkSwapchainKHR _swapchain;
+    std::vector<VkImage> _swapChainImages;
+    std::vector<VkImageView> _swapchainImageViews;
+    VkFormat _swapchainImageFormat;
+    VkExtent2D _swapchainExtent;
+    VkRenderPass _renderPass;
+    VkPipelineLayout _pipelineLayout;
+    VkPipeline _graphicsPipeline;
+    std::vector<VkFramebuffer> _swapchainFramebuffers;
 
     void initWindow();
     void initInstance();
-    void initDevice();
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-    void initLogicalDevice();
-    void initSurface();
     void initSwapChain();
-    void initImageViews();
-    VkShaderModule createShaderModule(const std::vector<char>& code);
-    void initGraphicsPipeline();
-    void initRenderPass();
-    void initFramebuffers();
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+    void initCommands();
     void initVulkan();
     void cleanup();
 };
