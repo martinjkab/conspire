@@ -7,9 +7,7 @@ void Conspire::run()
 {
 	auto renderEngine = RenderEngine();
 	renderEngine.init();
-	while (true){
-		renderEngine.mainLoop();
-	}
+	renderEngine.mainLoop();
 	initECS();
 }
 

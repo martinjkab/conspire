@@ -10,6 +10,8 @@
 #include <optional>
 #include <set>
 #include <fstream>
+#include "utils/vk_init.h"
+#include "utils/vk_images.h"
 
 #include "VkBootstrap.h"
 
@@ -86,7 +88,7 @@ void RenderEngine::initInstance()
 	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 }
 
-void RenderEngine::initSwapChain()
+void RenderEngine::initSwapchain()
 {
 	vkb::SwapchainBuilder swapchainBuilder{_gpu, _device, _surface};
 
@@ -102,7 +104,7 @@ void RenderEngine::initSwapChain()
 
 	_swapchainExtent = vkbSwapchain.extent;
 	_swapchain = vkbSwapchain.swapchain;
-	_swapChainImages = vkbSwapchain.get_images().value();
+	_swapchainImages = vkbSwapchain.get_images().value();
 	_swapchainImageViews = vkbSwapchain.get_image_views().value();
 }
 
@@ -130,36 +132,81 @@ void RenderEngine::initCommands()
 	}
 }
 
-static std::vector<char> readFile(const std::string &filename)
+void RenderEngine::initSyncStructures()
 {
-	std::ifstream file{filename, std::ios::ate | std::ios::binary};
+	VkFenceCreateInfo fenceCreateInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+	VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphoreCreateInfo();
 
-	if (!file.is_open())
-	{
-		throw std::runtime_error("failed to open file!");
+	for (int i = 0; i < FRAME_OVERLAP; i++) {
+		VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_frames[i]._renderFence));
+
+		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._swapchainSemaphore));
+		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._renderSemaphore));
 	}
+}
 
-	size_t fileSize = (size_t)file.tellg();
-	std::vector<char> buffer(fileSize);
+void RenderEngine::draw()
+{
+	VK_CHECK(vkWaitForFences(_device, 1, &getCurrentFrame()._renderFence, true, 1000000000));
+	VK_CHECK(vkResetFences(_device, 1, &getCurrentFrame()._renderFence));
+	uint32_t swapchainImageIndex;
+	VK_CHECK(vkAcquireNextImageKHR(_device, _swapchain, 1000000000, getCurrentFrame()._swapchainSemaphore, nullptr, &swapchainImageIndex));
+	
+	VkCommandBuffer cmd = getCurrentFrame()._mainCommandBuffer;
+	VK_CHECK(vkResetCommandBuffer(cmd, 0));
+	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-	file.seekg(0);
-	file.read(buffer.data(), fileSize);
+	vkutil::transitionImage(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	VkClearColorValue clearValue;
+	float flash = std::abs(std::sin(_frameNumber / 120.f));
+	clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
 
-	file.close();
+	VkImageSubresourceRange clearRange = vkinit::imageSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
+	vkCmdClearColorImage(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+	
+	vkutil::transitionImage(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
-	return buffer;
+	VK_CHECK(vkEndCommandBuffer(cmd));
+
+	VkCommandBufferSubmitInfo cmdinfo = vkinit::commandBufferSubmitInfo(cmd);
+
+	VkSemaphoreSubmitInfo waitInfo = vkinit::semaphoreSubmitInfo(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, getCurrentFrame()._swapchainSemaphore);
+	VkSemaphoreSubmitInfo signalInfo = vkinit::semaphoreSubmitInfo(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, getCurrentFrame()._renderSemaphore);
+
+	VkSubmitInfo2 submit = vkinit::submitInfo(&cmdinfo, &signalInfo, &waitInfo);
+
+	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, getCurrentFrame()._renderFence));
+
+	VkPresentInfoKHR presentInfo = {};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.pNext = nullptr;
+	presentInfo.pSwapchains = &_swapchain;
+	presentInfo.swapchainCount = 1;
+
+	presentInfo.pWaitSemaphores = &getCurrentFrame()._renderSemaphore;
+	presentInfo.waitSemaphoreCount = 1;
+
+	presentInfo.pImageIndices = &swapchainImageIndex;
+
+	VK_CHECK(vkQueuePresentKHR(_graphicsQueue, &presentInfo));
+
+	_frameNumber++;
 }
 
 void RenderEngine::initVulkan()
 {
 	initInstance();
-	initSwapChain();
+	initSwapchain();
+	initCommands();
+	initSyncStructures();
 }
 
 void RenderEngine::mainLoop()
 {
 	while (!glfwWindowShouldClose(_window))
 	{
+		draw();
 		glfwPollEvents();
 	}
 }

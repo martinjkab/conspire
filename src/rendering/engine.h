@@ -26,9 +26,11 @@ extern const uint32_t HEIGHT;
 
 struct FrameData
 {
-
     VkCommandPool _commandPool;
     VkCommandBuffer _mainCommandBuffer;
+    VkSemaphore _swapchainSemaphore;
+    VkSemaphore _renderSemaphore;
+    VkFence _renderFence;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -41,9 +43,9 @@ public:
 
 private:
     FrameData _frames[FRAME_OVERLAP];
-    int frameNumber = 0;
+    int _frameNumber = 0;
 
-    FrameData &get_current_frame() { return _frames[frameNumber % FRAME_OVERLAP]; };
+    FrameData &getCurrentFrame() { return _frames[_frameNumber % FRAME_OVERLAP]; };
 
     VkQueue _graphicsQueue;
     uint32_t _graphicsQueueFamily;
@@ -55,7 +57,7 @@ private:
     VkQueue _presentQueue;
     VkSurfaceKHR _surface;
     VkSwapchainKHR _swapchain;
-    std::vector<VkImage> _swapChainImages;
+    std::vector<VkImage> _swapchainImages;
     std::vector<VkImageView> _swapchainImageViews;
     VkFormat _swapchainImageFormat;
     VkExtent2D _swapchainExtent;
@@ -66,8 +68,10 @@ private:
 
     void initWindow();
     void initInstance();
-    void initSwapChain();
+    void initSwapchain();
     void initCommands();
+    void initSyncStructures();
+    void draw();
     void initVulkan();
     void cleanup();
 };

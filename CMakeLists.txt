@@ -11,8 +11,11 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Automatically find all source and header files
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h")
+
 # Add the executable
-add_executable(conspire src/main.cpp src/app.cpp "src/ecs/utils/remove_smart_ptr.h" "src/ecs/utils/vec_to_tuple.h" "src/rendering/components/transform.h" "src/ecs/ecs.h" "src/rendering/systems/startup_system.h" "src/rendering/engine.h" "src/rendering/engine.cpp" "src/rendering/rendering.h" "src/rendering/systems/systems.h" "src/rendering/components/components.h")
+add_executable(conspire ${SOURCES})
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
@@ -24,11 +27,6 @@ FetchContent_Declare(
     GIT_TAG        v1.4.321
 )
 FetchContent_MakeAvailable(fetch_vk_bootstrap)
-
-# Set policy to allow linking to targets from other directories
-cmake_policy(SET CMP0079 NEW)
-# Link Vulkan to vk-bootstrap so it gets the include directories
-target_link_libraries(vk-bootstrap PUBLIC Vulkan::Vulkan)
 
 target_link_libraries(conspire PRIVATE Vulkan::Vulkan glfw glm::glm vk-bootstrap::vk-bootstrap)
 
