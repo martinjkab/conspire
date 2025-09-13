@@ -10,15 +10,9 @@
 #include <vector>
 #include <cstdlib>
 
-#define VK_CHECK(x)       \
-    do                    \
-    {                     \
-        VkResult err = x; \
-        if (err)          \
-        {                 \
-            std::abort(); \
-        }                 \
-    } while (0)
+#include <vk_mem_alloc.h>
+#include "utils/vk_types.h"
+#include "utils/vk_descriptors.h"
 
 extern const char *APP_NAME;
 extern const uint32_t WIDTH;
@@ -65,6 +59,14 @@ private:
     VkPipelineLayout _pipelineLayout;
     VkPipeline _graphicsPipeline;
     std::vector<VkFramebuffer> _swapchainFramebuffers;
+    VmaAllocator _allocator;
+    AllocatedImage _drawImage;
+    VkExtent2D _drawExtent;
+    DescriptorAllocator globalDescriptorAllocator;
+    VkDescriptorSet _drawImageDescriptors;
+    VkDescriptorSetLayout _drawImageDescriptorLayout;
+    VkPipeline _gradientPipeline;
+    VkPipelineLayout _gradientPipelineLayout;
 
     void initWindow();
     void initInstance();
@@ -72,6 +74,10 @@ private:
     void initCommands();
     void initSyncStructures();
     void draw();
+    void drawBackground(VkCommandBuffer cmd) const;
     void initVulkan();
+    void initDescriptors();
+    void initPipelines();
+    void initBackgroundPipelines();
     void cleanup();
 };
