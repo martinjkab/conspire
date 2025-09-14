@@ -9,6 +9,7 @@
 #include <optional>
 #include <vector>
 #include <cstdlib>
+#include <string>
 
 #include <vk_mem_alloc.h>
 #include "utils/vk_types.h"
@@ -67,6 +68,9 @@ private:
     VkDescriptorSetLayout _drawImageDescriptorLayout;
     VkPipeline _gradientPipeline;
     VkPipelineLayout _gradientPipelineLayout;
+    VkPipelineLayout _trianglePipelineLayout;
+    VkPipeline _trianglePipeline;
+    VkCommandBuffer _uploadBuffer;
 
     void initWindow();
     void initInstance();
@@ -75,9 +79,13 @@ private:
     void initSyncStructures();
     void draw();
     void drawBackground(VkCommandBuffer cmd) const;
+    void drawGeometry(VkCommandBuffer cmd);
+    AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
     void initVulkan();
     void initDescriptors();
     void initPipelines();
     void initBackgroundPipelines();
+    void initTrianglePipeline();
+    std::vector<uint8_t> loadSprite(std::string path);
     void cleanup();
 };

@@ -11,6 +11,7 @@
 #include <set>
 #include <fstream>
 #include <fmt/base.h>
+#include <lodepng.h>
 #include "utils/vk_init.h"
 #include "utils/vk_images.h"
 #include "utils/vk_utils.h"
@@ -162,6 +163,19 @@ void RenderEngine::initCommands()
 
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._mainCommandBuffer));
 	}
+
+	VkCommandPool commandPool{};
+
+	VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &commandPool));
+
+	VkCommandBufferAllocateInfo cmdAllocInfo = {};
+	cmdAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cmdAllocInfo.pNext = nullptr;
+	cmdAllocInfo.commandPool = commandPool;
+	cmdAllocInfo.commandBufferCount = 1;
+	cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_uploadBuffer));
 }
 
 void RenderEngine::initSyncStructures()
@@ -200,7 +214,11 @@ void RenderEngine::draw()
 
 	drawBackground(cmd);
 
-	vkutil::transitionImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	vkutil::transitionImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	drawGeometry(cmd);
+
+	vkutil::transitionImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 	vkutil::transitionImage(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	vkutil::copyImageToImage(cmd, _drawImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
 	vkutil::transitionImage(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -239,6 +257,58 @@ void RenderEngine::drawBackground(VkCommandBuffer cmd) const
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipelineLayout, 0, 1, &_drawImageDescriptors, 0, nullptr);
 
 	vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0), std::ceil(_drawExtent.height / 16.0), 1);
+}
+
+void RenderEngine::drawGeometry(VkCommandBuffer cmd)
+{
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachmentInfo(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	VkRenderingInfo renderInfo = vkinit::renderingInfo(_drawExtent, &colorAttachment, nullptr);
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
+
+	VkViewport viewport = {};
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = _drawExtent.width;
+	viewport.height = _drawExtent.height;
+	viewport.minDepth = 0.f;
+	viewport.maxDepth = 1.f;
+
+	vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+	VkRect2D scissor = {};
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+	scissor.extent.width = _drawExtent.width;
+	scissor.extent.height = _drawExtent.height;
+
+	vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+	vkCmdDraw(cmd, 3, 1, 0, 0);
+
+	vkCmdEndRendering(cmd);
+}
+
+AllocatedBuffer RenderEngine::createBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+{
+	VkBufferCreateInfo bufferInfo = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+	bufferInfo.pNext = nullptr;
+	bufferInfo.size = allocSize;
+
+	bufferInfo.usage = usage;
+
+	VmaAllocationCreateInfo vmaallocInfo = {};
+	vmaallocInfo.usage = memoryUsage;
+	vmaallocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+	AllocatedBuffer newBuffer;
+
+	// allocate the buffer
+	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo, &newBuffer.buffer, &newBuffer.allocation,
+							 &newBuffer.info));
+
+	return newBuffer;
 }
 
 void RenderEngine::initVulkan()
@@ -295,6 +365,7 @@ void RenderEngine::initDescriptors()
 void RenderEngine::initPipelines()
 {
 	initBackgroundPipelines();
+	initTrianglePipeline();
 }
 
 void RenderEngine::initBackgroundPipelines()
@@ -327,6 +398,143 @@ void RenderEngine::initBackgroundPipelines()
 	computePipelineCreateInfo.stage = stageinfo;
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &_gradientPipeline));
+}
+
+void RenderEngine::initTrianglePipeline()
+{
+	VkShaderModule triangleFragShader;
+	if (!vkutil::loadShaderModule("shaders/colored_triangle.frag.spv", _device, &triangleFragShader))
+	{
+		fmt::print("Error when building the triangle fragment shader module");
+	}
+	else
+	{
+		fmt::print("Triangle fragment shader succesfully loaded");
+	}
+
+	VkShaderModule triangleVertexShader;
+	if (!vkutil::loadShaderModule("shaders/colored_triangle.vert.spv", _device, &triangleVertexShader))
+	{
+		fmt::print("Error when building the triangle vertex shader module");
+	}
+	else
+	{
+		fmt::print("Triangle vertex shader succesfully loaded");
+	}
+
+	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipelineLayoutCreateInfo();
+
+	DescriptorLayoutBuilder builder;
+	builder.addBinding(0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+	VkDescriptorSetLayout imageLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+	pipeline_layout_info.pSetLayouts = &imageLayout;
+	pipeline_layout_info.setLayoutCount = 1;
+	
+	{
+		std::vector<uint8_t> data = loadSprite("sprites/ok.png");
+		AllocatedImage newImage;
+		newImage.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		newImage.imageExtent = VkExtent3D{.width = 100, .height = 100, .depth = 1};
+
+		VkImageCreateInfo info = vkinit::imageCreateInfo(newImage.imageFormat, VkImageUsageFlagBits::VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, newImage.imageExtent);
+
+		VmaAllocationCreateInfo allocinfo = {};
+		allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		VK_CHECK(vmaCreateImage(_allocator, &info, &allocinfo, &newImage.image, &newImage.allocation, nullptr));
+
+		VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
+
+		VkImageViewCreateInfo view_info = vkinit::imageviewCreateInfo(newImage.imageFormat, newImage.image, aspectFlag);
+
+		VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &newImage.imageView));
+
+		VkFenceCreateInfo uploadFenceCreateInfo = vkinit::fenceCreateInfo();
+		VkFence _fence{};
+
+		VK_CHECK(vkCreateFence(_device, &uploadFenceCreateInfo, nullptr, &_fence));
+
+		VkCommandBufferBeginInfo cmdBeginInfo = vkinit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+		VK_CHECK(vkBeginCommandBuffer(_uploadBuffer, &cmdBeginInfo));
+
+		vkutil::transitionImage(_uploadBuffer, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		VkBufferImageCopy copyRegion = {};
+		copyRegion.bufferOffset = 0;
+		copyRegion.bufferRowLength = 0;
+		copyRegion.bufferImageHeight = 0;
+
+		copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		copyRegion.imageSubresource.mipLevel = 0;
+		copyRegion.imageSubresource.baseArrayLayer = 0;
+		copyRegion.imageSubresource.layerCount = 1;
+		copyRegion.imageExtent = newImage.imageExtent;
+
+		AllocatedBuffer uploadbuffer = createBuffer(data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+		// copy the buffer into the image
+		vkCmdCopyBufferToImage(_uploadBuffer, uploadbuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+			&copyRegion);
+
+		vkutil::transitionImage(_uploadBuffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	
+
+		VK_CHECK(vkEndCommandBuffer(_uploadBuffer));
+
+		VkCommandBufferSubmitInfo _cmdSubmitInfo = vkinit::commandBufferSubmitInfo(_uploadBuffer);
+
+		VkSubmitInfo2 submit = vkinit::submitInfo(&_cmdSubmitInfo, nullptr, nullptr);
+
+		VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _fence));
+
+		vkWaitForFences(_device, 1, &_fence, true, 9999999999);
+		vkResetFences(_device, 1, &_fence);
+
+		// reset the command buffers inside the command pool
+		//vkResetCommandPool(_device, _uploadContext._commandPool, 0);
+	}
+	
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
+
+	PipelineBuilder pipelineBuilder;
+
+	pipelineBuilder._pipelineLayout = _trianglePipelineLayout;
+	pipelineBuilder.setShaders(triangleVertexShader, triangleFragShader);
+	pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.setMultisamplingNone();
+	pipelineBuilder.disableBlending();
+	pipelineBuilder.disableDepthtest();
+
+	pipelineBuilder.setColorAttachmentFormat(_drawImage.imageFormat);
+	pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
+
+	_trianglePipeline = pipelineBuilder.buildPipeline(_device);
+
+	vkDestroyShaderModule(_device, triangleFragShader, nullptr);
+	vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
+}
+
+std::vector<uint8_t> RenderEngine::loadSprite(std::string path)
+{
+	std::vector<uint8_t> image;
+	unsigned width, height;
+
+	unsigned error = lodepng::decode(image, width, height, path);
+
+	if (error)
+	{
+		fmt::print("Error loading sprite {}: {}\n", path, lodepng_error_text(error));
+		return {};
+	}
+
+	fmt::print("Successfully loaded sprite: {} ({}x{}, RGBA)\n", path, width, height);
+	return image;
 }
 
 void RenderEngine::mainLoop()

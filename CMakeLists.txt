@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
+# Set minimum policy version to handle compatibility issues with dependencies
+set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
+if(POLICY CMP0025)
+    cmake_policy(SET CMP0025 NEW)
+endif()
+
 # Enable vcpkg integration
 if(DEFINED ENV{VCPKG_ROOT} AND EXISTS "$ENV{VCPKG_ROOT}")
     set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
@@ -28,9 +34,19 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/charles-lunarg/vk-bootstrap
     GIT_TAG        v1.4.321
 )
+FetchContent_Declare(
+    fetch_lodepng
+    GIT_REPOSITORY https://github.com/lvandeve/lodepng
+    GIT_TAG        master
+)
 FetchContent_MakeAvailable(fetch_vk_bootstrap)
+FetchContent_MakeAvailable(fetch_lodepng)
 
-target_link_libraries(conspire PRIVATE Vulkan::Vulkan glfw glm::glm vk-bootstrap::vk-bootstrap GPUOpen::VulkanMemoryAllocator fmt::fmt)
+# Create lodepng library target
+add_library(lodepng STATIC ${fetch_lodepng_SOURCE_DIR}/lodepng.cpp)
+target_include_directories(lodepng PUBLIC ${fetch_lodepng_SOURCE_DIR})
+
+target_link_libraries(conspire PRIVATE Vulkan::Vulkan glfw glm::glm vk-bootstrap::vk-bootstrap GPUOpen::VulkanMemoryAllocator fmt::fmt lodepng)
 
 # Cross-platform settings
 if(MSVC)
@@ -43,6 +59,7 @@ target_include_directories(conspire PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/ecs
     ${CMAKE_SOURCE_DIR}/rendering
+    ${CMAKE_BINARY_DIR}/_deps/fetch_lodepng-src
 )
 
 # Find the glslc shader compiler from the Vulkan SDK
