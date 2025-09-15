@@ -261,12 +261,32 @@ void RenderEngine::drawBackground(VkCommandBuffer cmd) const
 
 void RenderEngine::drawGeometry(VkCommandBuffer cmd)
 {
+
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachmentInfo(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	VkRenderingInfo renderInfo = vkinit::renderingInfo(_drawExtent, &colorAttachment, nullptr);
 	vkCmdBeginRendering(cmd, &renderInfo);
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
+
+	DescriptorAllocator allocator;
+	allocator.destroyPool(_device);
+	VkDescriptorSet imageSet = allocator.allocate(_device, _singleImageDescriptorLayout);
+
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _gradientPipelineLayout, 0, 1, &imageSet, 0, nullptr);
+
+	VkDescriptorImageInfo info = VkDescriptorImageInfo{
+		.sampler = _defaultSamplerNearest,
+		.imageView = _placeholderTexture.imageView,
+		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+
+	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+
+	write.dstBinding = 0;
+	write.dstSet = VK_NULL_HANDLE;
+	write.descriptorCount = 1;
+	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	write.pImageInfo = &info;
 
 	VkViewport viewport = {};
 	viewport.x = 0;
@@ -360,6 +380,12 @@ void RenderEngine::initDescriptors()
 	drawImageWrite.pImageInfo = &imgInfo;
 
 	vkUpdateDescriptorSets(_device, 1, &drawImageWrite, 0, nullptr);
+
+	{
+		DescriptorLayoutBuilder builder;
+		builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		_singleImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
 }
 
 void RenderEngine::initPipelines()
@@ -425,30 +451,29 @@ void RenderEngine::initTrianglePipeline()
 	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipelineLayoutCreateInfo();
 
 	DescriptorLayoutBuilder builder;
-	builder.addBinding(0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+	builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	VkDescriptorSetLayout imageLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
 	pipeline_layout_info.pSetLayouts = &imageLayout;
 	pipeline_layout_info.setLayoutCount = 1;
-	
+
 	{
 		std::vector<uint8_t> data = loadSprite("sprites/ok.png");
-		AllocatedImage newImage;
-		newImage.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-		newImage.imageExtent = VkExtent3D{.width = 100, .height = 100, .depth = 1};
+		_placeholderTexture.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+		_placeholderTexture.imageExtent = VkExtent3D{.width = 100, .height = 100, .depth = 1};
 
-		VkImageCreateInfo info = vkinit::imageCreateInfo(newImage.imageFormat, VkImageUsageFlagBits::VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, newImage.imageExtent);
+		VkImageCreateInfo info = vkinit::imageCreateInfo(_placeholderTexture.imageFormat, VkImageUsageFlagBits::VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, _placeholderTexture.imageExtent);
 
 		VmaAllocationCreateInfo allocinfo = {};
 		allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		allocinfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-		VK_CHECK(vmaCreateImage(_allocator, &info, &allocinfo, &newImage.image, &newImage.allocation, nullptr));
+		VK_CHECK(vmaCreateImage(_allocator, &info, &allocinfo, &_placeholderTexture.image, &_placeholderTexture.allocation, nullptr));
 
 		VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
 
-		VkImageViewCreateInfo view_info = vkinit::imageviewCreateInfo(newImage.imageFormat, newImage.image, aspectFlag);
+		VkImageViewCreateInfo view_info = vkinit::imageviewCreateInfo(_placeholderTexture.imageFormat, _placeholderTexture.image, aspectFlag);
 
-		VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &newImage.imageView));
+		VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &_placeholderTexture.imageView));
 
 		VkFenceCreateInfo uploadFenceCreateInfo = vkinit::fenceCreateInfo();
 		VkFence _fence{};
@@ -459,7 +484,7 @@ void RenderEngine::initTrianglePipeline()
 
 		VK_CHECK(vkBeginCommandBuffer(_uploadBuffer, &cmdBeginInfo));
 
-		vkutil::transitionImage(_uploadBuffer, newImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		vkutil::transitionImage(_uploadBuffer, _placeholderTexture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		VkBufferImageCopy copyRegion = {};
 		copyRegion.bufferOffset = 0;
@@ -470,17 +495,16 @@ void RenderEngine::initTrianglePipeline()
 		copyRegion.imageSubresource.mipLevel = 0;
 		copyRegion.imageSubresource.baseArrayLayer = 0;
 		copyRegion.imageSubresource.layerCount = 1;
-		copyRegion.imageExtent = newImage.imageExtent;
+		copyRegion.imageExtent = _placeholderTexture.imageExtent;
 
 		AllocatedBuffer uploadbuffer = createBuffer(data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 		// copy the buffer into the image
-		vkCmdCopyBufferToImage(_uploadBuffer, uploadbuffer.buffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-			&copyRegion);
+		vkCmdCopyBufferToImage(_uploadBuffer, uploadbuffer.buffer, _placeholderTexture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+							   &copyRegion);
 
-		vkutil::transitionImage(_uploadBuffer, newImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	
+		vkutil::transitionImage(_uploadBuffer, _placeholderTexture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+								VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		VK_CHECK(vkEndCommandBuffer(_uploadBuffer));
 
@@ -494,9 +518,15 @@ void RenderEngine::initTrianglePipeline()
 		vkResetFences(_device, 1, &_fence);
 
 		// reset the command buffers inside the command pool
-		//vkResetCommandPool(_device, _uploadContext._commandPool, 0);
+		// vkResetCommandPool(_device, _uploadContext._commandPool, 0);
 	}
-	
+
+	VkSamplerCreateInfo sampler = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+
+	sampler.magFilter = VK_FILTER_NEAREST;
+	sampler.minFilter = VK_FILTER_NEAREST;
+
+	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest);
 
 	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
 

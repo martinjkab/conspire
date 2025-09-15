@@ -71,6 +71,9 @@ private:
     VkPipelineLayout _trianglePipelineLayout;
     VkPipeline _trianglePipeline;
     VkCommandBuffer _uploadBuffer;
+    VkSampler _defaultSamplerNearest;
+    AllocatedImage _placeholderTexture;
+    VkDescriptorSetLayout _singleImageDescriptorLayout;
 
     void initWindow();
     void initInstance();
