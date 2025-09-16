@@ -10,6 +10,7 @@
 #include <vector>
 #include <cstdlib>
 #include <string>
+#include <functional>
 
 #include <vk_mem_alloc.h>
 #include "utils/vk_types.h"
@@ -26,6 +27,7 @@ struct FrameData
     VkSemaphore _swapchainSemaphore;
     VkSemaphore _renderSemaphore;
     VkFence _renderFence;
+    DescriptorAllocatorGrowable _frameDescriptors;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -70,10 +72,13 @@ private:
     VkPipelineLayout _gradientPipelineLayout;
     VkPipelineLayout _trianglePipelineLayout;
     VkPipeline _trianglePipeline;
-    VkCommandBuffer _uploadBuffer;
     VkSampler _defaultSamplerNearest;
     AllocatedImage _placeholderTexture;
     VkDescriptorSetLayout _singleImageDescriptorLayout;
+
+    VkCommandPool _immCommandPool;
+    VkCommandBuffer _immCommandBuffer;
+    VkFence _immFence;
 
     void initWindow();
     void initInstance();
@@ -91,4 +96,5 @@ private:
     void initTrianglePipeline();
     std::vector<uint8_t> loadSprite(std::string path);
     void cleanup();
+    void immediateSubmit(std::function<void(VkCommandBuffer cmd)> &&function);
 };

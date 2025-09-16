@@ -143,6 +143,7 @@ void RenderEngine::initSwapchain()
 
 void RenderEngine::initCommands()
 {
+
 	VkCommandPoolCreateInfo commandPoolInfo = {};
 	commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	commandPoolInfo.pNext = nullptr;
@@ -164,18 +165,11 @@ void RenderEngine::initCommands()
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._mainCommandBuffer));
 	}
 
-	VkCommandPool commandPool{};
+	VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
 
-	VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &commandPool));
+	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(_immCommandPool, 1);
 
-	VkCommandBufferAllocateInfo cmdAllocInfo = {};
-	cmdAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	cmdAllocInfo.pNext = nullptr;
-	cmdAllocInfo.commandPool = commandPool;
-	cmdAllocInfo.commandBufferCount = 1;
-	cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-
-	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_uploadBuffer));
+	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
 }
 
 void RenderEngine::initSyncStructures()
@@ -190,11 +184,15 @@ void RenderEngine::initSyncStructures()
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._swapchainSemaphore));
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._renderSemaphore));
 	}
+
+	VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
 }
 
 void RenderEngine::draw()
 {
 	VK_CHECK(vkWaitForFences(_device, 1, &getCurrentFrame()._renderFence, true, 1000000000));
+	getCurrentFrame()._frameDescriptors.clearPools(_device);
+
 	uint32_t swapchainImageIndex;
 	VK_CHECK(vkAcquireNextImageKHR(_device, _swapchain, 1000000000, getCurrentFrame()._swapchainSemaphore, nullptr, &swapchainImageIndex));
 
@@ -269,24 +267,15 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd)
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
 
-	DescriptorAllocator allocator;
-	allocator.destroyPool(_device);
-	VkDescriptorSet imageSet = allocator.allocate(_device, _singleImageDescriptorLayout);
+	VkDescriptorSet imageSet = getCurrentFrame()._frameDescriptors.allocate(_device, _singleImageDescriptorLayout);
+	{
+		DescriptorWriter writer;
+		writer.writeImage(0, _placeholderTexture.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _gradientPipelineLayout, 0, 1, &imageSet, 0, nullptr);
+		writer.updateSet(_device, imageSet);
+	}
 
-	VkDescriptorImageInfo info = VkDescriptorImageInfo{
-		.sampler = _defaultSamplerNearest,
-		.imageView = _placeholderTexture.imageView,
-		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-
-	VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-
-	write.dstBinding = 0;
-	write.dstSet = VK_NULL_HANDLE;
-	write.descriptorCount = 1;
-	write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	write.pImageInfo = &info;
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipelineLayout, 0, 1, &imageSet, 0, nullptr);
 
 	VkViewport viewport = {};
 	viewport.x = 0;
@@ -365,26 +354,28 @@ void RenderEngine::initDescriptors()
 
 	_drawImageDescriptors = globalDescriptorAllocator.allocate(_device, _drawImageDescriptorLayout);
 
-	VkDescriptorImageInfo imgInfo{};
-	imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	imgInfo.imageView = _drawImage.imageView;
+	DescriptorWriter writer;
+	writer.writeImage(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
-	VkWriteDescriptorSet drawImageWrite = {};
-	drawImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	drawImageWrite.pNext = nullptr;
-
-	drawImageWrite.dstBinding = 0;
-	drawImageWrite.dstSet = _drawImageDescriptors;
-	drawImageWrite.descriptorCount = 1;
-	drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	drawImageWrite.pImageInfo = &imgInfo;
-
-	vkUpdateDescriptorSets(_device, 1, &drawImageWrite, 0, nullptr);
+	writer.updateSet(_device, _drawImageDescriptors);
 
 	{
 		DescriptorLayoutBuilder builder;
 		builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_singleImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
+
+	for (int i = 0; i < FRAME_OVERLAP; i++)
+	{
+		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_sizes = {
+			{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
+			{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
+			{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
+			{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
+		};
+
+		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
+		_frames[i]._frameDescriptors.init(_device, 1000, frame_sizes);
 	}
 }
 
@@ -457,11 +448,16 @@ void RenderEngine::initTrianglePipeline()
 	pipeline_layout_info.setLayoutCount = 1;
 
 	{
-		std::vector<uint8_t> data = loadSprite("sprites/ok.png");
+		std::vector<uint8_t> data = loadSprite("assets/sprites/ok.png");
+
+		AllocatedBuffer uploadbuffer = createBuffer(data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+		memcpy(uploadbuffer.info.pMappedData, data.data(), data.size());
+
 		_placeholderTexture.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
 		_placeholderTexture.imageExtent = VkExtent3D{.width = 100, .height = 100, .depth = 1};
 
-		VkImageCreateInfo info = vkinit::imageCreateInfo(_placeholderTexture.imageFormat, VkImageUsageFlagBits::VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT, _placeholderTexture.imageExtent);
+		VkImageCreateInfo info = vkinit::imageCreateInfo(_placeholderTexture.imageFormat, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, _placeholderTexture.imageExtent);
 
 		VmaAllocationCreateInfo allocinfo = {};
 		allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -475,50 +471,27 @@ void RenderEngine::initTrianglePipeline()
 
 		VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &_placeholderTexture.imageView));
 
-		VkFenceCreateInfo uploadFenceCreateInfo = vkinit::fenceCreateInfo();
-		VkFence _fence{};
+		immediateSubmit([&](VkCommandBuffer cmd)
+						{
+			vkutil::transitionImage(cmd, _placeholderTexture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-		VK_CHECK(vkCreateFence(_device, &uploadFenceCreateInfo, nullptr, &_fence));
+			VkBufferImageCopy copyRegion = {};
+			copyRegion.bufferOffset = 0;
+			copyRegion.bufferRowLength = 0;
+			copyRegion.bufferImageHeight = 0;
 
-		VkCommandBufferBeginInfo cmdBeginInfo = vkinit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+			copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			copyRegion.imageSubresource.mipLevel = 0;
+			copyRegion.imageSubresource.baseArrayLayer = 0;
+			copyRegion.imageSubresource.layerCount = 1;
+			copyRegion.imageExtent = _placeholderTexture.imageExtent;
 
-		VK_CHECK(vkBeginCommandBuffer(_uploadBuffer, &cmdBeginInfo));
+			// copy the buffer into the image
+			vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, _placeholderTexture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+				&copyRegion);
 
-		vkutil::transitionImage(_uploadBuffer, _placeholderTexture.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-		VkBufferImageCopy copyRegion = {};
-		copyRegion.bufferOffset = 0;
-		copyRegion.bufferRowLength = 0;
-		copyRegion.bufferImageHeight = 0;
-
-		copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		copyRegion.imageSubresource.mipLevel = 0;
-		copyRegion.imageSubresource.baseArrayLayer = 0;
-		copyRegion.imageSubresource.layerCount = 1;
-		copyRegion.imageExtent = _placeholderTexture.imageExtent;
-
-		AllocatedBuffer uploadbuffer = createBuffer(data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-		// copy the buffer into the image
-		vkCmdCopyBufferToImage(_uploadBuffer, uploadbuffer.buffer, _placeholderTexture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-							   &copyRegion);
-
-		vkutil::transitionImage(_uploadBuffer, _placeholderTexture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-								VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-		VK_CHECK(vkEndCommandBuffer(_uploadBuffer));
-
-		VkCommandBufferSubmitInfo _cmdSubmitInfo = vkinit::commandBufferSubmitInfo(_uploadBuffer);
-
-		VkSubmitInfo2 submit = vkinit::submitInfo(&_cmdSubmitInfo, nullptr, nullptr);
-
-		VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _fence));
-
-		vkWaitForFences(_device, 1, &_fence, true, 9999999999);
-		vkResetFences(_device, 1, &_fence);
-
-		// reset the command buffers inside the command pool
-		// vkResetCommandPool(_device, _uploadContext._commandPool, 0);
+			vkutil::transitionImage(cmd, _placeholderTexture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); });
 	}
 
 	VkSamplerCreateInfo sampler = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
@@ -599,4 +572,27 @@ void RenderEngine::cleanup()
 	glfwDestroyWindow(_window);
 
 	glfwTerminate();
+}
+
+void RenderEngine::immediateSubmit(std::function<void(VkCommandBuffer cmd)> &&function)
+{
+	VK_CHECK(vkResetFences(_device, 1, &_immFence));
+	VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
+
+	VkCommandBuffer cmd = _immCommandBuffer;
+
+	VkCommandBufferBeginInfo cmdBeginInfo = vkinit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+
+	function(cmd);
+
+	VK_CHECK(vkEndCommandBuffer(cmd));
+
+	VkCommandBufferSubmitInfo cmdinfo = vkinit::commandBufferSubmitInfo(cmd);
+	VkSubmitInfo2 submit = vkinit::submitInfo(&cmdinfo, nullptr, nullptr);
+
+	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
+
+	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
 }

@@ -107,3 +107,13 @@ if(GLSL_SOURCE_FILES)
         COMMENT "Copying shaders to executable directory"
     )
 endif()
+
+# Copy assets folder to the executable directory after build
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/assets")
+    add_custom_command(TARGET conspire POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${CMAKE_SOURCE_DIR}/src/assets"
+                "$<TARGET_FILE_DIR:conspire>/assets"
+        COMMENT "Copying assets to executable directory"
+    )
+endif()

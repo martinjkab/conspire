@@ -6,6 +6,7 @@ namespace vkinit {
     VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
     VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
     VkCommandBufferBeginInfo commandBufferBeginInfo(VkCommandBufferUsageFlags flags = 0);
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo(VkCommandPool pool, uint32_t count = 1);
     VkImageSubresourceRange imageSubresourceRange(VkImageAspectFlags aspectMask);
     VkSemaphoreSubmitInfo semaphoreSubmitInfo(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore);
     VkCommandBufferSubmitInfo commandBufferSubmitInfo(VkCommandBuffer cmd);

@@ -28,6 +28,19 @@ VkCommandBufferBeginInfo vkinit::commandBufferBeginInfo(VkCommandBufferUsageFlag
     return info;
 }
 
+VkCommandBufferAllocateInfo vkinit::commandBufferAllocateInfo(
+    VkCommandPool pool, uint32_t count)
+{
+    VkCommandBufferAllocateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    info.pNext = nullptr;
+
+    info.commandPool = pool;
+    info.commandBufferCount = count;
+    info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    return info;
+}
+
 VkImageSubresourceRange vkinit::imageSubresourceRange(VkImageAspectFlags aspectMask)
 {
     VkImageSubresourceRange subImage{};
@@ -61,8 +74,8 @@ VkCommandBufferSubmitInfo vkinit::commandBufferSubmitInfo(VkCommandBuffer cmd)
     return info;
 }
 
-VkSubmitInfo2 vkinit::submitInfo(VkCommandBufferSubmitInfo* cmd, VkSemaphoreSubmitInfo* signalSemaphoreInfo,
-    VkSemaphoreSubmitInfo* waitSemaphoreInfo)
+VkSubmitInfo2 vkinit::submitInfo(VkCommandBufferSubmitInfo *cmd, VkSemaphoreSubmitInfo *signalSemaphoreInfo,
+                                 VkSemaphoreSubmitInfo *waitSemaphoreInfo)
 {
     VkSubmitInfo2 info{};
     info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
@@ -125,7 +138,7 @@ VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo()
     return info;
 }
 
-VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char* entry)
+VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char *entry)
 {
     VkPipelineShaderStageCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -138,7 +151,7 @@ VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderSt
 }
 
 VkRenderingAttachmentInfo vkinit::attachmentInfo(
-    VkImageView view, VkClearValue* clear, VkImageLayout layout)
+    VkImageView view, VkClearValue *clear, VkImageLayout layout)
 {
     VkRenderingAttachmentInfo colorAttachment{};
     colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -148,21 +161,22 @@ VkRenderingAttachmentInfo vkinit::attachmentInfo(
     colorAttachment.imageLayout = layout;
     colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    if (clear) {
+    if (clear)
+    {
         colorAttachment.clearValue = *clear;
     }
 
     return colorAttachment;
 }
 
-VkRenderingInfo vkinit::renderingInfo(VkExtent2D renderExtent, VkRenderingAttachmentInfo* colorAttachment,
-    VkRenderingAttachmentInfo* depthAttachment)
+VkRenderingInfo vkinit::renderingInfo(VkExtent2D renderExtent, VkRenderingAttachmentInfo *colorAttachment,
+                                      VkRenderingAttachmentInfo *depthAttachment)
 {
     VkRenderingInfo renderInfo{};
     renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     renderInfo.pNext = nullptr;
 
-    renderInfo.renderArea = VkRect2D{ VkOffset2D { 0, 0 }, renderExtent };
+    renderInfo.renderArea = VkRect2D{VkOffset2D{0, 0}, renderExtent};
     renderInfo.layerCount = 1;
     renderInfo.colorAttachmentCount = 1;
     renderInfo.pColorAttachments = colorAttachment;
