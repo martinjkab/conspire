@@ -13,7 +13,7 @@ struct QueryBase
 template <typename... Args>
 class Query : public QueryBase
 {
-    static_assert(std::conjunction_v<std::is_base_of<Component, Args>...>,
+    static_assert(std::conjunction_v<std::is_base_of<ComponentBase, Args>...>,
                   "All target arguments must be Components");
 public:
     using Types = std::tuple<Args...>;

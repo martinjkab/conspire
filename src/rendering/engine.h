@@ -1,10 +1,25 @@
 #pragma once
 
-#define VK_USE_PLATFORM_WIN32_KHR
-#include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
+#if defined(_WIN32)
+#  define VK_USE_PLATFORM_WIN32_KHR
+#  include <vulkan/vulkan.h>
+#  include <GLFW/glfw3.h>
+#  define GLFW_EXPOSE_NATIVE_WIN32
+#  include <GLFW/glfw3native.h>
+#elif defined(__APPLE__)
+#  define VK_USE_PLATFORM_MACOS_MVK
+#  include <vulkan/vulkan.h>
+#  include <GLFW/glfw3.h>
+#  define GLFW_EXPOSE_NATIVE_COCOA
+#  include <GLFW/glfw3native.h>
+#else()
+#  include <vulkan/vulkan.h>
+#  include <GLFW/glfw3.h>
+#  if(DEFINED ENV{DISPLAY})
+#    define GLFW_EXPOSE_NATIVE_X11
+#  endif()
+#  include <GLFW/glfw3native.h>
+#endif
 
 #include <optional>
 #include <vector>

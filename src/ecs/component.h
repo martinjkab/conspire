@@ -1,12 +1,12 @@
 #pragma once
 #include <ostream>
 
-class Component
+class ComponentBase
 {
 public:
-    virtual ~Component() = default;
+    virtual ~ComponentBase() = default;
 
-    friend std::ostream &operator<<(std::ostream &os, const Component &comp)
+    friend std::ostream &operator<<(std::ostream &os, const ComponentBase &comp)
     {
         (void)comp;
         os << "Component";

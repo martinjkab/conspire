@@ -27,7 +27,7 @@ public:
 	template <typename... Args>
 	void addEntity(Args... args)
 	{
-		static_assert(std::conjunction_v<std::is_base_of<Component, Args>...>, "All arguments must be Component");
+		static_assert(std::conjunction_v<std::is_base_of<ComponentBase, Args>...>, "All arguments must be Component");
 		auto entity_id = entityCounter++;
 		std::apply([this, entity_id](auto &&...args_pack)
 			{ (([&]
@@ -57,8 +57,8 @@ public:
 
 private:
 	int entityCounter = 0;
-	TypeMap<Component, std::vector<std::shared_ptr<Component>>> components;
-	TypeMap<Component, std::unordered_map<int, size_t>> entityToComponentIndex;
+	TypeMap<ComponentBase, std::vector<std::shared_ptr<ComponentBase>>> components;
+	TypeMap<ComponentBase, std::unordered_map<int, size_t>> entityToComponentIndex;
 	std::vector<std::function<void()>> systems;
 
 	template <typename Func, std::size_t... Is>

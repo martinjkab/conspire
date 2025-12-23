@@ -5,7 +5,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/io.hpp>
 
-struct Transform : Component
+struct Transform : ComponentBase
 {
 	glm::vec3 position;
 
