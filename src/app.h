@@ -1,11 +1,10 @@
 #pragma once
 #include "ecs/world.h"
 
-class Conspire
-{
-public:
-    void run();
+class Conspire {
+ public:
+  void run();
 
-private:
-    void initECS();
+ private:
+  void initECS();
 };

@@ -1,25 +1,24 @@
 #pragma once
 
-#include <type_traits>
-#include <tuple>
-#include <vector>
 #include <memory>
+#include <tuple>
+#include <type_traits>
+#include <vector>
+
 #include "component.h"
 
 template <typename T>
-class Resource
-{
-public:
-    using Type = T;
+class Resource {
+ public:
+  using Type = T;
 
-    Resource(std::shared_ptr<T> value) : value{value} {};
+  Resource(std::shared_ptr<T> value) : value{value} {};
 
-    std::shared_ptr<T> value;
+  std::shared_ptr<T> value;
 
-private:
+ private:
 };
 
 template <typename T>
-concept IsResource = requires(T &t) {
-    []<typename U>(const Resource<U> &) {}(t);
-};
+concept IsResource =
+    requires(T& t) { []<typename U>(const Resource<U>&) {}(t); };

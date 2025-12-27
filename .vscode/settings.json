@@ -84,5 +84,7 @@
     "shared_mutex": "cpp",
     "source_location": "cpp",
     "variant": "cpp"
-  }
+  },
+  "C_Cpp.formatting": "clangFormat",
+  "C_Cpp.clang_format_fallbackStyle": "Google"
 }
