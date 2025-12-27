@@ -2,6 +2,6 @@
 
 #include "ecs/ecs.h"
 
-void startup_system() {
-
+void startup_system()
+{
 }

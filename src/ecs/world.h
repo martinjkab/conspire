@@ -17,6 +17,10 @@
 #include "utils/vec_to_tuple.h"
 #include "component.h"
 #include "query.h"
+#include "resource.h"
+
+template <typename T>
+concept IsSystemParam = (IsQuery<T> || IsResource<T>);
 
 class World
 {
@@ -30,21 +34,27 @@ public:
 		static_assert(std::conjunction_v<std::is_base_of<ComponentBase, Args>...>, "All arguments must be Component");
 		auto entity_id = entityCounter++;
 		std::apply([this, entity_id](auto &&...args_pack)
-			{ (([&]
-				{
+				   { (([&]
+					   {
 					using T = std::decay_t<decltype(args_pack)>;
 					auto& compVec = components.get<T>();
 					compVec.push_back(std::make_shared<T>(args_pack));
 					entityToComponentIndex.get<T>()[entity_id] = compVec.size() - 1; }()),
-				...); }, std::forward_as_tuple(args...));
+					  ...); }, std::forward_as_tuple(args...));
 	}
 
 	template <typename Func>
-	void addSystem(Func&& system)
+	void addSystem(Func &&system)
 	{
 		using FuncTraits = function_traits<std::decay_t<Func>>;
 		addSystemImpl(std::forward<Func>(system),
-			std::make_index_sequence<FuncTraits::arity>{});
+					  std::make_index_sequence<FuncTraits::arity>{});
+	}
+
+	template <typename T>
+	void addResource(T resource)
+	{
+		resources[typeid(T)] = std::make_shared<T>(resource);
 	}
 
 	void runSystems()
@@ -55,72 +65,98 @@ public:
 		}
 	}
 
+	bool shouldQuit = false;
+
 private:
 	int entityCounter = 0;
 	TypeMap<ComponentBase, std::vector<std::shared_ptr<ComponentBase>>> components;
 	TypeMap<ComponentBase, std::unordered_map<int, size_t>> entityToComponentIndex;
+	std::unordered_map<std::type_index, std::shared_ptr<void>> resources;
 	std::vector<std::function<void()>> systems;
 
-	template <typename Func, std::size_t... Is>
-	void addSystemImpl(Func&& system, std::index_sequence<Is...>)
+	template <typename T>
+	void processIntersection(std::vector<int> &intersection, bool &first)
 	{
-		using FuncTraits = function_traits<std::decay_t<Func>>;
-		static_assert((std::is_base_of_v<QueryBase,
-			typename FuncTraits::template arg<Is>> &&
-			...),
-			"All arguments must be Queries");
+		using Comp = remove_smart_ptr_t<T>;
+		auto &entityMap = entityToComponentIndex.get<Comp>();
 
-		systems.emplace_back([this, system = std::forward<Func>(system)]() mutable
-			{ system(getQuery<typename FuncTraits::template arg<Is>>()...); });
+		if (first)
+		{
+			intersection.reserve(entityMap.size());
+			for (const auto &p : entityMap)
+				intersection.push_back(p.first);
+			first = false;
+		}
+		else
+		{
+			std::vector<int> next;
+			next.reserve(std::min(intersection.size(), entityMap.size()));
+			for (int id : intersection)
+			{
+				if (entityMap.find(id) != entityMap.end())
+					next.push_back(id);
+			}
+			intersection.swap(next);
+		}
+	}
+
+	template <typename T>
+	std::shared_ptr<remove_smart_ptr_t<T>> getComponentForEntity(int entity)
+	{
+		using Comp = remove_smart_ptr_t<T>;
+		auto &componentIndex = entityToComponentIndex.get<Comp>()[entity];
+		auto &component = components.get<Comp>()[componentIndex];
+		return std::static_pointer_cast<Comp>(component);
 	}
 
 	template <typename Query>
 	Query getQuery()
 	{
-		static_assert(std::is_base_of_v<QueryBase, Query>, "Argument must be a Query");
 		using ComponentTuple = typename Query::Types;
 		bool first = true;
 		std::vector<int> intersection;
-		[this, &intersection, &first] <typename... ComponentTypes>(std::tuple<ComponentTypes...> *)
-		{
-			(([this, &intersection, &first]()
-				{
-					using Comp = remove_smart_ptr_t<ComponentTypes>;
-					auto& entityMap = entityToComponentIndex.get<Comp>();
 
-					if (first) {
-						intersection.reserve(entityMap.size());
-						for (const auto& p : entityMap)
-							intersection.push_back(p.first);
-						first = false;
-					}
-					else {
-						std::vector<int> next;
-						next.reserve(std::min(intersection.size(), entityMap.size()));
-						for (int id : intersection)
-						{
-							if (entityMap.find(id) != entityMap.end())
-								next.push_back(id);
-						}
-						intersection.swap(next);
-					} }()),
-				...);
-		}(static_cast<ComponentTuple*>(nullptr));
+		[this, &intersection, &first]<typename... ComponentTypes>(std::tuple<ComponentTypes...> *)
+		{
+			(this->processIntersection<ComponentTypes>(intersection, first), ...);
+		}(static_cast<ComponentTuple *>(nullptr));
 
 		auto results = std::vector<typename Query::ComponentTuple>();
 		for (auto entity : intersection)
 		{
-			auto componentTuple = [this, &entity]<typename... ComponentTypes>(std::tuple<ComponentTypes...> *)
+			auto componentTuple = [this, entity]<typename... ComponentTypes>(std::tuple<ComponentTypes...> *)
 			{
-				return std::make_tuple([this, &entity]() -> std::shared_ptr<remove_smart_ptr_t<ComponentTypes>>
-					{
-						using Comp = remove_smart_ptr_t<ComponentTypes>;
-						auto& componentIndex = entityToComponentIndex.get<Comp>()[entity];
-						auto& component = components.get<Comp>()[componentIndex];
-						return std::static_pointer_cast<Comp>(component); }()...);
-			}(static_cast<ComponentTuple*>(nullptr));
+				return std::make_tuple(this->getComponentForEntity<ComponentTypes>(entity)...);
+			}(static_cast<ComponentTuple *>(nullptr));
 			results.push_back(componentTuple);
 		}
-		return Query{ results };
+		return Query{results};
+	}
+
+	template <typename Resource>
+	Resource getResource()
+	{
+		using ResourceType = typename Resource::Type;
+		return static_pointer_cast<ResourceType>(resources[typeid(ResourceType)]);
+	}
+
+	template <typename Func, std::size_t... Is>
+	void addSystemImpl(Func &&system, std::index_sequence<Is...>)
+	{
+		using FuncTraits = function_traits<std::decay_t<Func>>;
+		static_assert((IsSystemParam<typename FuncTraits::template arg<Is>> && ...), "All arguments must be SystemParams");
+
+		systems.emplace_back([this, system = std::forward<Func>(system)]() mutable
+							 { system([this]() -> decltype(auto)
+									  {
+            using ArgType = typename FuncTraits::template arg<Is>;
+            if constexpr (IsResource<ArgType>)
+            {
+                return this->getResource<ArgType>();
+            }
+            else
+            {
+                return this->getQuery<ArgType>();
+            } }()...); });
 	}
 };

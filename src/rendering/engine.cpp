@@ -558,11 +558,8 @@ std::vector<uint8_t> RenderEngine::loadSprite(std::string path)
 
 void RenderEngine::mainLoop()
 {
-	while (!glfwWindowShouldClose(_window))
-	{
-		draw();
-		glfwPollEvents();
-	}
+	draw();
+	glfwPollEvents();
 }
 
 void RenderEngine::cleanup()

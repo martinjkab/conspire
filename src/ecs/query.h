@@ -6,22 +6,19 @@
 #include <memory>
 #include "component.h"
 
-struct QueryBase
-{
-};
-
 template <typename... Args>
-class Query : public QueryBase
+class Query
 {
     static_assert(std::conjunction_v<std::is_base_of<ComponentBase, Args>...>,
                   "All target arguments must be Components");
+
 public:
     using Types = std::tuple<Args...>;
     using ComponentTuple = std::tuple<std::shared_ptr<Args>...>;
 
-    Query(std::vector<ComponentTuple> results) : results{ results } {
+    Query(std::vector<ComponentTuple> results) : results{results} {
 
-    };
+                                                 };
 
     auto begin() { return results.begin(); }
     auto end() { return results.end(); }
@@ -30,6 +27,12 @@ public:
 
     size_t size() const { return results.size(); }
     bool empty() const { return results.empty(); }
+
 private:
     std::vector<ComponentTuple> results;
+};
+
+template <typename T>
+concept IsQuery = requires(T &t) {
+    []<typename U>(const Query<U> &) {}(t);
 };

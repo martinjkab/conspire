@@ -76,6 +76,7 @@ file(GLOB_RECURSE GLSL_SOURCE_FILES
 )
 
 if(GLSL_SOURCE_FILES)
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/shaders")
     set(SPIRV_FILES "")
     foreach(GLSL_FILE ${GLSL_SOURCE_FILES})
         get_filename_component(SHADER_NAME ${GLSL_FILE} NAME_WE)

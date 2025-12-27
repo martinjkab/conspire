@@ -7,7 +7,8 @@
             "command": "cmake",
             "args": [
                 "--build",
-                "${workspaceFolder}/build"
+                "${workspaceFolder}/build",
+                "--verbose"
             ],
             "group": {
                 "kind": "build",
