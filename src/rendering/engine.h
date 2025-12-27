@@ -51,6 +51,9 @@ class RenderEngine {
  public:
   void init();
   void mainLoop();
+  AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage,
+                               VmaMemoryUsage memoryUsage);
+  VkDeviceAddress getBufferDeviceAddress(VkBufferDeviceAddressInfo& info);
 
  private:
   FrameData _frames[FRAME_OVERLAP];
@@ -104,8 +107,6 @@ class RenderEngine {
   void draw();
   void drawBackground(VkCommandBuffer cmd) const;
   void drawGeometry(VkCommandBuffer cmd);
-  AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage,
-                               VmaMemoryUsage memoryUsage);
   void initVulkan();
   void initDescriptors();
   void initPipelines();

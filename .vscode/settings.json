@@ -85,6 +85,7 @@
     "source_location": "cpp",
     "variant": "cpp"
   },
+  "C_Cpp.clang_format_sortIncludes": false,
   "C_Cpp.formatting": "clangFormat",
   "C_Cpp.clang_format_fallbackStyle": "Google"
 }

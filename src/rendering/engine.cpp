@@ -379,6 +379,11 @@ AllocatedBuffer RenderEngine::createBuffer(size_t allocSize,
   return newBuffer;
 }
 
+VkDeviceAddress RenderEngine::getBufferDeviceAddress(
+    VkBufferDeviceAddressInfo& info) {
+  return vkGetBufferDeviceAddress(_device, &info);
+}
+
 void RenderEngine::initVulkan() {
   initInstance();
 
@@ -495,6 +500,11 @@ void RenderEngine::initTrianglePipeline() {
     fmt::print("Triangle vertex shader succesfully loaded");
   }
 
+  VkPushConstantRange bufferRange{};
+  bufferRange.offset = 0;
+  bufferRange.size = sizeof(VkDeviceAddress);
+  bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
   VkPipelineLayoutCreateInfo pipelineLayoutInfo =
       vkinit::pipelineLayoutCreateInfo();
 
@@ -505,6 +515,8 @@ void RenderEngine::initTrianglePipeline() {
   auto layouts = std::array{_singleImageDescriptorLayout, perObjectLayout};
   pipelineLayoutInfo.pSetLayouts = layouts.data();
   pipelineLayoutInfo.setLayoutCount = layouts.size();
+  pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
 
   {
     std::vector<uint8_t> data = loadSprite("assets/sprites/ok.png");
