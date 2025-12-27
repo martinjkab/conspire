@@ -12,6 +12,7 @@
 #include <fstream>
 #include <fmt/base.h>
 #include <lodepng.h>
+#include <glm/glm.hpp>
 #include "utils/vk_init.h"
 #include "utils/vk_images.h"
 #include "utils/vk_utils.h"
@@ -267,15 +268,29 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd)
 
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
 
-	VkDescriptorSet imageSet = getCurrentFrame()._frameDescriptors.allocate(_device, _singleImageDescriptorLayout);
+	DescriptorLayoutBuilder perObjectLayoutBuilder;
+	perObjectLayoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	VkDescriptorSetLayout perObjectLayout = perObjectLayoutBuilder.build(_device, VK_SHADER_STAGE_VERTEX_BIT);
+	auto imageSetLayouts = std::vector{_singleImageDescriptorLayout, perObjectLayout};
+	std::vector<VkDescriptorSet> imageSet = getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
 	{
-		DescriptorWriter writer;
-		writer.writeImage(0, _placeholderTexture.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-		writer.updateSet(_device, imageSet);
+		{
+			DescriptorWriter writer;
+			writer.writeImage(0, _placeholderTexture.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+			writer.updateSet(_device, imageSet.at(0));
+		}
+		{
+			DescriptorWriter writer;
+			glm::mat4 data = {2.0f};
+			data[3][3] = 1.0f;
+			AllocatedBuffer uploadbuffer = createBuffer(sizeof(glm::mat4), VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+			memcpy(uploadbuffer.info.pMappedData, &data, sizeof(glm::mat4));
+			writer.writeBuffer(0, uploadbuffer.buffer, sizeof(glm::mat4), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+			writer.updateSet(_device, imageSet.at(1));
+		}
 	}
 
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipelineLayout, 0, 1, &imageSet, 0, nullptr);
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipelineLayout, 0, imageSet.size(), imageSet.data(), 0, nullptr);
 
 	VkViewport viewport = {};
 	viewport.x = 0;
@@ -439,13 +454,14 @@ void RenderEngine::initTrianglePipeline()
 		fmt::print("Triangle vertex shader succesfully loaded");
 	}
 
-	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipelineLayoutCreateInfo();
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo();
 
-	DescriptorLayoutBuilder builder;
-	builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	VkDescriptorSetLayout imageLayout = builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
-	pipeline_layout_info.pSetLayouts = &imageLayout;
-	pipeline_layout_info.setLayoutCount = 1;
+	DescriptorLayoutBuilder perObjectLayoutBuilder;
+	perObjectLayoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	VkDescriptorSetLayout perObjectLayout = perObjectLayoutBuilder.build(_device, VK_SHADER_STAGE_VERTEX_BIT);
+	auto layouts = std::array{_singleImageDescriptorLayout, perObjectLayout};
+	pipelineLayoutInfo.pSetLayouts = layouts.data();
+	pipelineLayoutInfo.setLayoutCount = layouts.size();
 
 	{
 		std::vector<uint8_t> data = loadSprite("assets/sprites/ok.png");
@@ -501,7 +517,7 @@ void RenderEngine::initTrianglePipeline()
 
 	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest);
 
-	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr, &_trianglePipelineLayout));
 
 	PipelineBuilder pipelineBuilder;
 
