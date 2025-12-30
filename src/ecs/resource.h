@@ -14,9 +14,14 @@ class Resource {
 
   Resource(std::shared_ptr<T> value) : value{value} {};
 
-  std::shared_ptr<T> value;
+  T& operator*() { return *value; }
+
+  const T& operator*() const { return *value; }
+
+  T* operator->() { return value.get(); }
 
  private:
+  std::shared_ptr<T> value;
 };
 
 template <typename T>
