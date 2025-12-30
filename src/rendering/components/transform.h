@@ -7,13 +7,13 @@
 #include <glm/gtx/io.hpp>
 
 struct Transform : ComponentBase {
-  glm::vec3 position;
+  glm::mat4 model;
 
-  Transform(const glm::vec3& position = glm::vec3{0}) : position{position} {}
+  Transform(const glm::mat4& model = glm::mat4{}) : model{model} {}
 
   friend std::ostream& operator<<(std::ostream& os, const Transform& comp) {
     (void)comp;
-    os << "Transform(" << comp.position << ")";
+    os << "Transform(" << comp.model << ")";
     return os;
   }
 };

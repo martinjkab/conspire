@@ -52,8 +52,10 @@ class World {
   }
 
   template <typename T>
-  void addResource(T resource) {
-    resources[typeid(T)] = std::make_shared<T>(resource);
+  void addResource(T&& resource) {
+    using DecayedT = typename std::decay<T>::type;
+    resources[typeid(DecayedT)] =
+        std::make_shared<DecayedT>(std::forward<T>(resource));
   }
 
   void runSystems() {

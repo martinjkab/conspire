@@ -24,6 +24,8 @@
 
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
+#include "mesh_store.h"
+#include "render_list.h"
 
 const char* APP_NAME = "Conspire";
 const uint32_t WIDTH = 800;
@@ -200,7 +202,8 @@ void RenderEngine::initSyncStructures() {
   VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
 }
 
-void RenderEngine::draw() {
+void RenderEngine::draw(const MeshStore& meshStore,
+                        const RenderList& renderList) {
   VK_CHECK(vkWaitForFences(_device, 1, &getCurrentFrame()._renderFence, true,
                            1000000000));
   getCurrentFrame()._frameDescriptors.clearPools(_device);
@@ -231,7 +234,7 @@ void RenderEngine::draw() {
   vkutil::transitionImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-  drawGeometry(cmd);
+  drawGeometry(cmd, meshStore, renderList);
 
   vkutil::transitionImage(cmd, _drawImage.image,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -288,7 +291,8 @@ void RenderEngine::drawBackground(VkCommandBuffer cmd) const {
                 std::ceil(_drawExtent.height / 16.0), 1);
 }
 
-void RenderEngine::drawGeometry(VkCommandBuffer cmd) {
+void RenderEngine::drawGeometry(VkCommandBuffer cmd, const MeshStore& meshStore,
+                                const RenderList& renderList) {
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachmentInfo(
       _drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -302,36 +306,6 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd) {
   perObjectLayoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   VkDescriptorSetLayout perObjectLayout =
       perObjectLayoutBuilder.build(_device, VK_SHADER_STAGE_VERTEX_BIT);
-  auto imageSetLayouts =
-      std::vector{_singleImageDescriptorLayout, perObjectLayout};
-  std::vector<VkDescriptorSet> imageSet =
-      getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
-  {
-    {
-      DescriptorWriter writer;
-      writer.writeImage(0, _placeholderTexture.imageView,
-                        _defaultSamplerNearest,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-      writer.updateSet(_device, imageSet.at(0));
-    }
-    {
-      DescriptorWriter writer;
-      glm::mat4 data = {2.0f};
-      data[3][3] = 1.0f;
-      AllocatedBuffer uploadbuffer =
-          createBuffer(sizeof(glm::mat4), VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT,
-                       VMA_MEMORY_USAGE_CPU_TO_GPU);
-      memcpy(uploadbuffer.info.pMappedData, &data, sizeof(glm::mat4));
-      writer.writeBuffer(0, uploadbuffer.buffer, sizeof(glm::mat4), 0,
-                         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-      writer.updateSet(_device, imageSet.at(1));
-    }
-  }
-
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          _trianglePipelineLayout, 0, imageSet.size(),
-                          imageSet.data(), 0, nullptr);
 
   VkViewport viewport = {};
   viewport.x = 0;
@@ -351,9 +325,99 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd) {
 
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-  vkCmdDraw(cmd, 3, 1, 0, 0);
+  for (auto item : renderList.items) {
+    auto imageSetLayouts =
+        std::vector{_singleImageDescriptorLayout, perObjectLayout};
+    std::vector<VkDescriptorSet> imageSet =
+        getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
+    {
+      DescriptorWriter writer;
+      writer.writeImage(0, _placeholderTexture.imageView,
+                        _defaultSamplerNearest,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+      writer.updateSet(_device, imageSet.at(0));
+    }
+    {
+      DescriptorWriter writer;
+      AllocatedBuffer uploadbuffer =
+          createBuffer(sizeof(glm::mat4), VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT,
+                       VMA_MEMORY_USAGE_CPU_TO_GPU);
+      memcpy(uploadbuffer.info.pMappedData, &(item.model), sizeof(glm::mat4));
+      writer.writeBuffer(0, uploadbuffer.buffer, sizeof(glm::mat4), 0,
+                         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+      writer.updateSet(_device, imageSet.at(1));
+    }
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _trianglePipelineLayout, 0, imageSet.size(),
+                            imageSet.data(), 0, nullptr);
+
+    auto bufferData = meshStore[item.meshHandle];
+    vkCmdPushConstants(cmd, _trianglePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
+                       0, sizeof(VkDeviceAddress),
+                       &(bufferData.vertexBufferAddress));
+    vkCmdBindIndexBuffer(cmd, bufferData.indexBuffer.buffer, 0,
+                         VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+  }
 
   vkCmdEndRendering(cmd);
+}
+
+MeshBuffer RenderEngine::uploadMesh(std::vector<Vertex> vertices,
+                                    std::vector<uint32_t> indices) {
+  const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+  const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+
+  MeshBuffer buffer;
+
+  buffer.vertexBuffer = createBuffer(
+      vertexBufferSize,
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+
+  VkBufferDeviceAddressInfo deviceAddressInfo{
+      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+      .buffer = buffer.vertexBuffer.buffer};
+  buffer.vertexBufferAddress = getBufferDeviceAddress(deviceAddressInfo);
+
+  buffer.indexBuffer = createBuffer(
+      indexBufferSize,
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+
+  AllocatedBuffer staging =
+      createBuffer(vertexBufferSize + indexBufferSize,
+                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+
+  void* data = staging.allocation->GetMappedData();
+
+  memcpy(data, vertices.data(), vertexBufferSize);
+  memcpy((char*)data + vertexBufferSize, indices.data(), indexBufferSize);
+
+  immediateSubmit([&](VkCommandBuffer cmd) {
+    VkBufferCopy vertexCopy{0};
+    vertexCopy.dstOffset = 0;
+    vertexCopy.srcOffset = 0;
+    vertexCopy.size = vertexBufferSize;
+
+    vkCmdCopyBuffer(cmd, staging.buffer, buffer.vertexBuffer.buffer, 1,
+                    &vertexCopy);
+
+    VkBufferCopy indexCopy{0};
+    indexCopy.dstOffset = 0;
+    indexCopy.srcOffset = vertexBufferSize;
+    indexCopy.size = indexBufferSize;
+
+    vkCmdCopyBuffer(cmd, staging.buffer, buffer.indexBuffer.buffer, 1,
+                    &indexCopy);
+  });
+
+  vkDestroyBuffer(_device, staging.buffer, nullptr);
+
+  return buffer;
 }
 
 AllocatedBuffer RenderEngine::createBuffer(size_t allocSize,
@@ -628,8 +692,9 @@ std::vector<uint8_t> RenderEngine::loadSprite(std::string path) {
   return image;
 }
 
-void RenderEngine::mainLoop() {
-  draw();
+void RenderEngine::mainLoop(const MeshStore& meshStore,
+                            const RenderList& renderList) {
+  draw(meshStore, renderList);
   glfwPollEvents();
 }
 

@@ -4,11 +4,6 @@
 
 #include "ecs/world.h"
 
-void Conspire::run() {
-  auto renderEngine = RenderEngine();
-  renderEngine.init();
-  renderEngine.mainLoop();
-  initECS();
-}
+void Conspire::run() {}
 
 void Conspire::initECS() {}

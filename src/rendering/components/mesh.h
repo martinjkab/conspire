@@ -15,6 +15,8 @@ struct Mesh : ComponentBase {
     return os;
   }
 
+  int getHandle() { return handle; }
+
  private:
   int handle;
 };

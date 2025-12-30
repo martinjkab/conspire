@@ -31,6 +31,10 @@
 
 #include "utils/vk_descriptors.h"
 #include "utils/vk_types.h"
+#include "mesh_store.h"
+#include "render_list.h"
+#include <glm/glm.hpp>
+#include "vertex.h"
 
 extern const char* APP_NAME;
 extern const uint32_t WIDTH;
@@ -50,10 +54,12 @@ constexpr unsigned int FRAME_OVERLAP = 2;
 class RenderEngine {
  public:
   void init();
-  void mainLoop();
+  void mainLoop(const MeshStore& meshStore, const RenderList& renderList);
   AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage,
                                VmaMemoryUsage memoryUsage);
   VkDeviceAddress getBufferDeviceAddress(VkBufferDeviceAddressInfo& info);
+  MeshBuffer uploadMesh(std::vector<Vertex> vertices,
+                        std::vector<uint32_t> indices);
 
  private:
   FrameData _frames[FRAME_OVERLAP];
@@ -104,9 +110,10 @@ class RenderEngine {
   void initSwapchain();
   void initCommands();
   void initSyncStructures();
-  void draw();
+  void draw(const MeshStore& meshStore, const RenderList& renderList);
   void drawBackground(VkCommandBuffer cmd) const;
-  void drawGeometry(VkCommandBuffer cmd);
+  void drawGeometry(VkCommandBuffer cmd, const MeshStore& meshStore,
+                    const RenderList& renderList);
   void initVulkan();
   void initDescriptors();
   void initPipelines();
