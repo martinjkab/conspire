@@ -34,4 +34,5 @@ class Query {
 };
 
 template <typename T>
-concept IsQuery = requires(T& t) { []<typename U>(const Query<U>&) {}(t); };
+concept IsQuery =
+    requires(T& t) { []<typename... Args>(const Query<Args...>&) {}(t); };
