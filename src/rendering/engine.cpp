@@ -331,10 +331,10 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
         std::vector{_singleImageDescriptorLayout, perObjectLayout};
     std::vector<VkDescriptorSet> imageSet =
         getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
+    auto textureData = assetStore[item.textureHandle];
     {
       DescriptorWriter writer;
-      writer.writeImage(0, _placeholderTexture.imageView,
-                        _defaultSamplerNearest,
+      writer.writeImage(0, textureData.image.imageView, _defaultSamplerNearest,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
       writer.updateSet(_device, imageSet.at(0));
@@ -419,6 +419,66 @@ MeshBuffer RenderEngine::uploadMesh(std::vector<Vertex> vertices,
   vkDestroyBuffer(_device, staging.buffer, nullptr);
 
   return buffer;
+}
+
+TextureBuffer RenderEngine::uploadTexture(const std::string& path) {
+  auto [data, width, height] = loadSprite(path);
+  AllocatedBuffer uploadbuffer =
+      createBuffer(data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+  memcpy(uploadbuffer.info.pMappedData, data.data(), data.size());
+
+  AllocatedImage image;
+
+  image.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
+  image.imageExtent = VkExtent3D{.width = width, .height = height, .depth = 1};
+
+  VkImageCreateInfo info = vkinit::imageCreateInfo(
+      image.imageFormat,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+      image.imageExtent);
+
+  VmaAllocationCreateInfo allocinfo = {};
+  allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+  allocinfo.requiredFlags =
+      VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  VK_CHECK(vmaCreateImage(_allocator, &info, &allocinfo, &image.image,
+                          &image.allocation, nullptr));
+
+  VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
+
+  VkImageViewCreateInfo view_info =
+      vkinit::imageviewCreateInfo(image.imageFormat, image.image, aspectFlag);
+
+  VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &image.imageView));
+
+  immediateSubmit([&](VkCommandBuffer cmd) {
+    vkutil::transitionImage(cmd, image.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    VkBufferImageCopy copyRegion = {};
+    copyRegion.bufferOffset = 0;
+    copyRegion.bufferRowLength = 0;
+    copyRegion.bufferImageHeight = 0;
+
+    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyRegion.imageSubresource.mipLevel = 0;
+    copyRegion.imageSubresource.baseArrayLayer = 0;
+    copyRegion.imageSubresource.layerCount = 1;
+    copyRegion.imageExtent = image.imageExtent;
+
+    // copy the buffer into the image
+    vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, image.image,
+                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                           &copyRegion);
+
+    vkutil::transitionImage(cmd, image.image,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  });
+  return {image};
 }
 
 AllocatedBuffer RenderEngine::createBuffer(size_t allocSize,
@@ -583,68 +643,6 @@ void RenderEngine::initTrianglePipeline() {
   pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
   pipelineLayoutInfo.pushConstantRangeCount = 1;
 
-  {
-    std::vector<uint8_t> data = loadSprite("assets/sprites/ok.png");
-
-    AllocatedBuffer uploadbuffer =
-        createBuffer(data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                     VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-    memcpy(uploadbuffer.info.pMappedData, data.data(), data.size());
-
-    _placeholderTexture.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-    _placeholderTexture.imageExtent =
-        VkExtent3D{.width = 100, .height = 100, .depth = 1};
-
-    VkImageCreateInfo info = vkinit::imageCreateInfo(
-        _placeholderTexture.imageFormat,
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        _placeholderTexture.imageExtent);
-
-    VmaAllocationCreateInfo allocinfo = {};
-    allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    allocinfo.requiredFlags =
-        VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VK_CHECK(vmaCreateImage(_allocator, &info, &allocinfo,
-                            &_placeholderTexture.image,
-                            &_placeholderTexture.allocation, nullptr));
-
-    VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
-
-    VkImageViewCreateInfo view_info = vkinit::imageviewCreateInfo(
-        _placeholderTexture.imageFormat, _placeholderTexture.image, aspectFlag);
-
-    VK_CHECK(vkCreateImageView(_device, &view_info, nullptr,
-                               &_placeholderTexture.imageView));
-
-    immediateSubmit([&](VkCommandBuffer cmd) {
-      vkutil::transitionImage(cmd, _placeholderTexture.image,
-                              VK_IMAGE_LAYOUT_UNDEFINED,
-                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-      VkBufferImageCopy copyRegion = {};
-      copyRegion.bufferOffset = 0;
-      copyRegion.bufferRowLength = 0;
-      copyRegion.bufferImageHeight = 0;
-
-      copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      copyRegion.imageSubresource.mipLevel = 0;
-      copyRegion.imageSubresource.baseArrayLayer = 0;
-      copyRegion.imageSubresource.layerCount = 1;
-      copyRegion.imageExtent = _placeholderTexture.imageExtent;
-
-      // copy the buffer into the image
-      vkCmdCopyBufferToImage(
-          cmd, uploadbuffer.buffer, _placeholderTexture.image,
-          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
-
-      vkutil::transitionImage(cmd, _placeholderTexture.image,
-                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    });
-  }
-
   VkSamplerCreateInfo sampler = {.sType =
                                      VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
 
@@ -676,7 +674,8 @@ void RenderEngine::initTrianglePipeline() {
   vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
 }
 
-std::vector<uint8_t> RenderEngine::loadSprite(std::string path) {
+std::tuple<std::vector<uint8_t>, unsigned, unsigned> RenderEngine::loadSprite(
+    std::string path) {
   std::vector<uint8_t> image;
   unsigned width, height;
 
@@ -690,7 +689,7 @@ std::vector<uint8_t> RenderEngine::loadSprite(std::string path) {
 
   fmt::print("Successfully loaded sprite: {} ({}x{}, RGBA)\n", path, width,
              height);
-  return image;
+  return {image, width, height};
 }
 
 void RenderEngine::mainLoop(const AssetStore& assetStore,

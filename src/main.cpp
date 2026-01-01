@@ -12,6 +12,7 @@
 #include "rendering/asset_store.h"
 #include "rendering/components/mesh.h"
 #include "rendering/render_list.h"
+#include "rendering/components/texture.h"
 
 int main() {
   auto engine = std::make_shared<RenderEngine>(RenderEngine{});
@@ -30,10 +31,13 @@ int main() {
   world.addResource(RenderList{});
   world.addEntity(
       Transform{glm::translate(glm::mat4{1.0}, glm::vec3{-0.5, -0.5, 0.0})},
-      mesh);
+      mesh,
+      Texture{
+          assetStore.add(engine->uploadTexture("assets/sprites/rock.png"))});
   world.addEntity(
-      Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0.5, 0.5, 0.0})},
-      mesh);
+      Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0.5, 0.5, 0.0})}, mesh,
+      Texture{
+          assetStore.add(engine->uploadTexture("assets/sprites/warrior.png"))});
   // world.addSystem([](Query<Transform> transformQuery) {
   //   for (auto transformTuple : transformQuery) {
   //     const auto [transform] = transformTuple;
@@ -41,13 +45,13 @@ int main() {
   //         glm::translate(transform->model, glm::vec3{-0.005, -0.005, 0.0});
   //   }
   // });
-  world.addSystem([](Query<Transform, Mesh> transformQuery,
+  world.addSystem([](Query<Transform, Mesh, Texture> transformQuery,
                      Resource<RenderList> renderList) {
     renderList->items.clear();
     for (auto transformTuple : transformQuery) {
-      const auto [transform, mesh] = transformTuple;
-      renderList->items.push_back(
-          RenderListItem{mesh->getHandle(), transform->model});
+      const auto [transform, mesh, texture] = transformTuple;
+      renderList->items.push_back(RenderListItem{
+          mesh->getHandle(), texture->getHandle(), transform->model});
     }
   });
   world.addSystem(

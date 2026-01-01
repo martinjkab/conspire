@@ -39,4 +39,4 @@ template <typename T>
 std::unordered_map<uint64_t, T> AssetStore::storage = {};
 
 template <typename T>
-uint64_t AssetStore::counter = 0;
+uint64_t AssetStore::counter = 1;

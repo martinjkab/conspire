@@ -35,6 +35,7 @@
 #include "render_list.h"
 #include <glm/glm.hpp>
 #include "vertex.h"
+#include "texture_buffer.h"
 
 extern const char* APP_NAME;
 extern const uint32_t WIDTH;
@@ -60,6 +61,7 @@ class RenderEngine {
   VkDeviceAddress getBufferDeviceAddress(VkBufferDeviceAddressInfo& info);
   MeshBuffer uploadMesh(std::vector<Vertex> vertices,
                         std::vector<uint32_t> indices);
+  TextureBuffer uploadTexture(const std::string& path);
 
  private:
   FrameData _frames[FRAME_OVERLAP];
@@ -98,7 +100,6 @@ class RenderEngine {
   VkPipelineLayout _trianglePipelineLayout;
   VkPipeline _trianglePipeline;
   VkSampler _defaultSamplerNearest;
-  AllocatedImage _placeholderTexture;
   VkDescriptorSetLayout _singleImageDescriptorLayout;
 
   VkCommandPool _immCommandPool;
@@ -119,7 +120,8 @@ class RenderEngine {
   void initPipelines();
   void initBackgroundPipelines();
   void initTrianglePipeline();
-  std::vector<uint8_t> loadSprite(std::string path);
+  std::tuple<std::vector<uint8_t>, unsigned, unsigned> loadSprite(
+      std::string path);
   void cleanup();
   void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 };
