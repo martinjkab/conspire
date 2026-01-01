@@ -50,7 +50,7 @@ struct FrameData {
   DescriptorAllocatorGrowable _frameDescriptors;
 };
 
-constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int FRAME_OVERLAP = 3;
 
 class RenderEngine {
  public:
@@ -93,10 +93,6 @@ class RenderEngine {
   AllocatedImage _drawImage;
   VkExtent2D _drawExtent;
   DescriptorAllocator globalDescriptorAllocator;
-  VkDescriptorSet _drawImageDescriptors;
-  VkDescriptorSetLayout _drawImageDescriptorLayout;
-  VkPipeline _gradientPipeline;
-  VkPipelineLayout _gradientPipelineLayout;
   VkPipelineLayout _trianglePipelineLayout;
   VkPipeline _trianglePipeline;
   VkSampler _defaultSamplerNearest;
@@ -114,13 +110,11 @@ class RenderEngine {
   void initCommands();
   void initSyncStructures();
   void draw(const AssetStore& assetStore, const RenderList& renderList);
-  void drawBackground(VkCommandBuffer cmd) const;
   void drawGeometry(VkCommandBuffer cmd, const AssetStore& assetStore,
                     const RenderList& renderList);
   void initVulkan();
   void initDescriptors();
   void initPipelines();
-  void initBackgroundPipelines();
   void initTrianglePipeline();
   std::tuple<std::vector<uint8_t>, unsigned, unsigned> loadSprite(
       std::string path);

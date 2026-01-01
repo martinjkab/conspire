@@ -229,11 +229,6 @@ void RenderEngine::draw(const AssetStore& assetStore,
   VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
   vkutil::transitionImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
-                          VK_IMAGE_LAYOUT_GENERAL);
-
-  drawBackground(cmd);
-
-  vkutil::transitionImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
   drawGeometry(cmd, assetStore, renderList);
@@ -280,17 +275,6 @@ void RenderEngine::draw(const AssetStore& assetStore,
   VK_CHECK(vkQueuePresentKHR(_graphicsQueue, &presentInfo));
 
   _frameNumber++;
-}
-
-void RenderEngine::drawBackground(VkCommandBuffer cmd) const {
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipeline);
-
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
-                          _gradientPipelineLayout, 0, 1, &_drawImageDescriptors,
-                          0, nullptr);
-
-  vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0),
-                std::ceil(_drawExtent.height / 16.0), 1);
 }
 
 void RenderEngine::drawGeometry(VkCommandBuffer cmd,
@@ -555,22 +539,6 @@ void RenderEngine::initDescriptors() {
 
   {
     DescriptorLayoutBuilder builder;
-    builder.addBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-    _drawImageDescriptorLayout =
-        builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
-  }
-
-  _drawImageDescriptors =
-      globalDescriptorAllocator.allocate(_device, _drawImageDescriptorLayout);
-
-  DescriptorWriter writer;
-  writer.writeImage(0, _drawImage.imageView, VK_NULL_HANDLE,
-                    VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-
-  writer.updateSet(_device, _drawImageDescriptors);
-
-  {
-    DescriptorLayoutBuilder builder;
     builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     builder.addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     _perObjectDescriptorLayout = builder.build(
@@ -597,45 +565,7 @@ void RenderEngine::initDescriptors() {
   }
 }
 
-void RenderEngine::initPipelines() {
-  initBackgroundPipelines();
-  initTrianglePipeline();
-}
-
-void RenderEngine::initBackgroundPipelines() {
-  VkPipelineLayoutCreateInfo computeLayout{};
-  computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  computeLayout.pNext = nullptr;
-  computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
-  computeLayout.setLayoutCount = 1;
-
-  VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr,
-                                  &_gradientPipelineLayout));
-
-  VkShaderModule computeDrawShader;
-  if (!vkutil::loadShaderModule("shaders/gradient.comp.spv", _device,
-                                &computeDrawShader)) {
-    fmt::print("Error when building the compute shader \n");
-  }
-
-  VkPipelineShaderStageCreateInfo stageinfo{};
-  stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  stageinfo.pNext = nullptr;
-  stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-  stageinfo.module = computeDrawShader;
-  stageinfo.pName = "main";
-
-  VkComputePipelineCreateInfo computePipelineCreateInfo{};
-  computePipelineCreateInfo.sType =
-      VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-  computePipelineCreateInfo.pNext = nullptr;
-  computePipelineCreateInfo.layout = _gradientPipelineLayout;
-  computePipelineCreateInfo.stage = stageinfo;
-
-  VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1,
-                                    &computePipelineCreateInfo, nullptr,
-                                    &_gradientPipeline));
-}
+void RenderEngine::initPipelines() { initTrianglePipeline(); }
 
 void RenderEngine::initTrianglePipeline() {
   VkShaderModule triangleFragShader;
