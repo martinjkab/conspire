@@ -20,6 +20,8 @@ class Resource {
 
   T* operator->() { return value.get(); }
 
+  T* get() { return value.get(); }
+
  private:
   std::shared_ptr<T> value;
 };

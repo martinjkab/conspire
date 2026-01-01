@@ -56,12 +56,12 @@ class RenderEngine {
  public:
   void init();
   void mainLoop(const AssetStore& assetStore, const RenderList& renderList);
-  AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage,
-                               VmaMemoryUsage memoryUsage);
-  VkDeviceAddress getBufferDeviceAddress(VkBufferDeviceAddressInfo& info);
+
   MeshBuffer uploadMesh(std::vector<Vertex> vertices,
                         std::vector<uint32_t> indices);
   TextureBuffer uploadTexture(const std::string& path);
+  void setKeyCallback(GLFWkeyfun callback);
+  GLFWwindow* getWindow();
 
  private:
   FrameData _frames[FRAME_OVERLAP];
@@ -120,4 +120,7 @@ class RenderEngine {
       std::string path);
   void cleanup();
   void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+  VkDeviceAddress getBufferDeviceAddress(VkBufferDeviceAddressInfo& info);
+  AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage,
+                               VmaMemoryUsage memoryUsage);
 };

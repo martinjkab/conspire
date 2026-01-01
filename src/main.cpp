@@ -13,6 +13,7 @@
 #include "rendering/components/mesh.h"
 #include "rendering/render_list.h"
 #include "rendering/components/texture.h"
+#include "ecs/input_state.h"
 
 int main() {
   World world{};
@@ -20,9 +21,29 @@ int main() {
   world.addResource(RenderEngine{});
   world.addResource(AssetStore{});
   world.addResource(RenderList{});
+  world.addResource(InputState{});
 
   world.addSystem(STARTUP,
                   [](Resource<RenderEngine> engine) { engine->init(); });
+
+  world.addSystem(STARTUP, [](Resource<RenderEngine> engine,
+                              Resource<InputState> state) {
+    glfwSetWindowUserPointer(engine->getWindow(), state.get());
+
+    engine->setKeyCallback([](GLFWwindow* window, int key, int scancode,
+                              int action, int mods) {
+      auto* state = static_cast<InputState*>(glfwGetWindowUserPointer(window));
+      if (key < 0 || key >= 256) return;
+
+      if (action == GLFW_PRESS) {
+        state->pressed.set(key);
+        state->down.set(key);
+      } else if (action == GLFW_RELEASE) {
+        state->released.set(key);
+        state->down.reset(key);
+      }
+    });
+  });
 
   world.addSystem(STARTUP, [](Resource<RenderEngine> engine,
                               Resource<AssetStore> assetStore, World& world) {
@@ -52,11 +73,36 @@ int main() {
           mesh->getHandle(), texture->getHandle(), transform->model});
     }
   });
+  world.addSystem(UPDATE, [](Query<Transform> transformQuery,
+                             Resource<InputState> inputState) {
+    for (auto transformTuple : transformQuery) {
+      const auto [transform] = transformTuple;
+      auto direction = glm::vec3{0};
+      const float speed = 10.0f;
+      if (inputState->down.test(GLFW_KEY_A)) {
+        direction += glm::vec3(-1, 0, 0);
+      }
+      if (inputState->down.test(GLFW_KEY_D)) {
+        direction += glm::vec3(1, 0, 0);
+      }
+      if (inputState->down.test(GLFW_KEY_W)) {
+        direction += glm::vec3(0, -1, 0);
+      }
+      if (inputState->down.test(GLFW_KEY_S)) {
+        direction += glm::vec3(0, 1, 0);
+      }
+      transform->model = glm::translate(transform->model, direction * speed);
+    }
+  });
 
   world.addSystem(UPDATE, [](Resource<RenderList> renderList,
                              Resource<AssetStore> assetStore,
                              Resource<RenderEngine> engine) {
     engine->mainLoop(*assetStore, *renderList);
+  });
+  world.addSystem(UPDATE, [](Resource<InputState> inputState) {
+    inputState->pressed.reset();
+    inputState->released.reset();
   });
 
   world.runSystems(STARTUP);

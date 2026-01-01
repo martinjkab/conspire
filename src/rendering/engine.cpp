@@ -280,8 +280,11 @@ void RenderEngine::draw(const AssetStore& assetStore,
 void RenderEngine::drawGeometry(VkCommandBuffer cmd,
                                 const AssetStore& assetStore,
                                 const RenderList& renderList) {
-  VkRenderingAttachmentInfo colorAttachment = vkinit::attachmentInfo(
-      _drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VkClearColorValue clearColorValue{0.0};
+  VkClearValue clearValue{.color = clearColorValue};
+  VkRenderingAttachmentInfo colorAttachment =
+      vkinit::attachmentInfo(_drawImage.imageView, &clearValue,
+                             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
   VkRenderingInfo renderInfo =
       vkinit::renderingInfo(_drawExtent, &colorAttachment, nullptr);
@@ -485,6 +488,12 @@ TextureBuffer RenderEngine::uploadTexture(const std::string& path) {
   });
   return {image};
 }
+
+void RenderEngine::setKeyCallback(GLFWkeyfun callback) {
+  glfwSetKeyCallback(_window, callback);
+}
+
+GLFWwindow* RenderEngine::getWindow() { return _window; }
 
 AllocatedBuffer RenderEngine::createBuffer(size_t allocSize,
                                            VkBufferUsageFlags usage,
