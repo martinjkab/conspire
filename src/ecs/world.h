@@ -17,9 +17,13 @@
 #include "utils/remove_smart_ptr.h"
 #include "utils/type_map.h"
 #include "utils/vec_to_tuple.h"
+#include "phase.h"
+
+class World;
 
 template <typename T>
-concept IsSystemParam = (IsQuery<T> || IsResource<T>);
+concept IsSystemParam =
+    (IsQuery<T> || IsResource<T> || std::is_same_v<T, World&>);
 
 class World {
  public:
@@ -45,9 +49,9 @@ class World {
   }
 
   template <typename Func>
-  void addSystem(Func&& system) {
+  void addSystem(Phase phase, Func&& system) {
     using FuncTraits = function_traits<std::decay_t<Func>>;
-    addSystemImpl(std::forward<Func>(system),
+    addSystemImpl(phase, std::forward<Func>(system),
                   std::make_index_sequence<FuncTraits::arity>{});
   }
 
@@ -58,8 +62,8 @@ class World {
         std::make_shared<DecayedT>(std::forward<T>(resource));
   }
 
-  void runSystems() {
-    for (auto system : systems) {
+  void runSystems(Phase phase) {
+    for (auto system : systems[phase]) {
       system();
     }
   }
@@ -73,7 +77,7 @@ class World {
   TypeMap<ComponentBase, std::unordered_map<int, size_t>>
       entityToComponentIndex;
   std::unordered_map<std::type_index, std::shared_ptr<void>> resources;
-  std::vector<std::function<void()>> systems;
+  std::unordered_map<Phase, std::vector<std::function<void()>>> systems;
 
   template <typename T>
   void processIntersection(std::vector<int>& intersection, bool& first) {
@@ -132,20 +136,23 @@ class World {
   }
 
   template <typename Func, std::size_t... Is>
-  void addSystemImpl(Func&& system, std::index_sequence<Is...>) {
+  void addSystemImpl(Phase phase, Func&& system, std::index_sequence<Is...>) {
     using FuncTraits = function_traits<std::decay_t<Func>>;
     static_assert((IsSystemParam<typename FuncTraits::template arg<Is>> && ...),
                   "All arguments must be SystemParams");
 
-    systems.emplace_back([this, system = std::forward<Func>(system)]() mutable {
-      system([this]() -> decltype(auto) {
-        using ArgType = typename FuncTraits::template arg<Is>;
-        if constexpr (IsResource<ArgType>) {
-          return this->getResource<ArgType>();
-        } else {
-          return this->getQuery<ArgType>();
-        }
-      }()...);
-    });
+    systems[phase].emplace_back(
+        [this, system = std::forward<Func>(system)]() mutable {
+          system([this]() -> decltype(auto) {
+            using ArgType = typename FuncTraits::template arg<Is>;
+            if constexpr (IsResource<ArgType>) {
+              return this->getResource<ArgType>();
+            } else if constexpr (IsQuery<ArgType>) {
+              return this->getQuery<ArgType>();
+            } else {
+              return *this;
+            }
+          }()...);
+        });
   }
 };

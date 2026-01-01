@@ -44,7 +44,7 @@ void RenderEngine::initWindow() {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-  this->_window = glfwCreateWindow(WIDTH, HEIGHT, APP_NAME, nullptr, nullptr);
+  _window = glfwCreateWindow(WIDTH, HEIGHT, APP_NAME, nullptr, nullptr);
 }
 
 void RenderEngine::initInstance() {

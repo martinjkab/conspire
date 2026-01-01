@@ -15,36 +15,35 @@
 #include "rendering/components/texture.h"
 
 int main() {
-  auto engine = std::make_shared<RenderEngine>(RenderEngine{});
-  engine->init();
-
-  auto assetStore = AssetStore{};
-  auto mesh = Mesh{assetStore.add(engine->uploadMesh(
-      {{glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}, glm::vec2{0.0f, 0.0f}},
-       {glm::vec4{1.0f, 0.0f, 0.0f, 1.0f}, glm::vec2{1.0f, 0.0f}},
-       {glm::vec4{1.0f, 1.0f, 0.0f, 1.0f}, glm::vec2{1.0f, 1.0f}},
-       {glm::vec4{0.0f, 1.0f, 0.0f, 1.0f}, glm::vec2{0.0f, 1.0f}}},
-      {0, 1, 2, 2, 3, 0}))};
-
   World world{};
-  world.addResource(assetStore);
+
+  world.addResource(RenderEngine{});
+  world.addResource(AssetStore{});
   world.addResource(RenderList{});
-  world.addEntity(
-      Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0, 0, 0.0})}, mesh,
-      Texture{
-          assetStore.add(engine->uploadTexture("assets/sprites/rock.png"))});
-  // world.addEntity(Transform{glm::mat4{1.0}}, mesh,
-  //                 Texture{assetStore.add(
-  //                     engine->uploadTexture("assets/sprites/rock.png"))});
-  // world.addSystem([](Query<Transform> transformQuery) {
-  //   for (auto transformTuple : transformQuery) {
-  //     const auto [transform] = transformTuple;
-  //     transform->model =
-  //         glm::translate(transform->model, glm::vec3{-0.005, -0.005, 0.0});
-  //   }
-  // });
-  world.addSystem([](Query<Transform, Mesh, Texture> transformQuery,
-                     Resource<RenderList> renderList) {
+
+  world.addSystem(STARTUP,
+                  [](Resource<RenderEngine> engine) { engine->init(); });
+  world.addSystem(STARTUP, [](Resource<RenderEngine> engine,
+                              Resource<AssetStore> assetStore, World& world) {
+    auto meshHandle = engine->uploadMesh(
+        {{glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}, glm::vec2{0.0f, 0.0f}},
+         {glm::vec4{1.0f, 0.0f, 0.0f, 1.0f}, glm::vec2{1.0f, 0.0f}},
+         {glm::vec4{1.0f, 1.0f, 0.0f, 1.0f}, glm::vec2{1.0f, 1.0f}},
+         {glm::vec4{0.0f, 1.0f, 0.0f, 1.0f}, glm::vec2{0.0f, 1.0f}}},
+        {0, 1, 2, 2, 3, 0});
+
+    auto textureHandle = engine->uploadTexture("assets/sprites/rock.png");
+
+    auto mesh = Mesh{assetStore->add(meshHandle)};
+    auto texture = Texture{assetStore->add(textureHandle)};
+
+    world.addEntity(
+        Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0, 0, 0.0})}, mesh,
+        texture);
+  });
+
+  world.addSystem(UPDATE, [](Query<Transform, Mesh, Texture> transformQuery,
+                             Resource<RenderList> renderList) {
     renderList->items.clear();
     for (auto transformTuple : transformQuery) {
       const auto [transform, mesh, texture] = transformTuple;
@@ -52,18 +51,26 @@ int main() {
           mesh->getHandle(), texture->getHandle(), transform->model});
     }
   });
-  world.addSystem(
-      [&](Resource<RenderList> renderList, Resource<AssetStore> assetStore) {
-        engine->mainLoop(*assetStore, *renderList);
-      });
+
+  world.addSystem(UPDATE, [](Resource<RenderList> renderList,
+                             Resource<AssetStore> assetStore,
+                             Resource<RenderEngine> engine) {
+    engine->mainLoop(*assetStore, *renderList);
+  });
+
+  world.runSystems(STARTUP);
 
   try {
     while (!world.shouldQuit) {
       auto begin = std::chrono::high_resolution_clock::now();
-      world.runSystems();
+
+      world.runSystems(UPDATE);
+
       auto end = std::chrono::high_resolution_clock::now();
-      auto diff = begin - end;
-      auto sleep = std::chrono::milliseconds(17) - diff;
+      auto duration =
+          std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+      auto sleep = std::chrono::milliseconds(17) - duration;
+
       if (sleep.count() > 0) {
         std::this_thread::sleep_for(sleep);
       }
