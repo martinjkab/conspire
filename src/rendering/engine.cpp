@@ -9,6 +9,7 @@
 #include <cstring>
 #include <fstream>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -303,11 +304,6 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
 
-  DescriptorLayoutBuilder perObjectLayoutBuilder;
-  perObjectLayoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  VkDescriptorSetLayout perObjectLayout =
-      perObjectLayoutBuilder.build(_device, VK_SHADER_STAGE_VERTEX_BIT);
-
   VkViewport viewport = {};
   viewport.x = 0;
   viewport.y = 0;
@@ -327,8 +323,7 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
   for (auto item : renderList.items) {
-    auto imageSetLayouts =
-        std::vector{_singleImageDescriptorLayout, perObjectLayout};
+    auto imageSetLayouts = std::vector{_perObjectDescriptorLayout};
     std::vector<VkDescriptorSet> imageSet =
         getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
     auto textureData = assetStore[item.textureHandle];
@@ -344,10 +339,13 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
       AllocatedBuffer uploadbuffer =
           createBuffer(sizeof(glm::mat4), VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT,
                        VMA_MEMORY_USAGE_CPU_TO_GPU);
-      memcpy(uploadbuffer.info.pMappedData, &(item.model), sizeof(glm::mat4));
-      writer.writeBuffer(0, uploadbuffer.buffer, sizeof(glm::mat4), 0,
+      auto scaled = glm::scale(
+          item.model, glm::vec3(textureData.image.imageExtent.width,
+                                textureData.image.imageExtent.height, 0));
+      memcpy(uploadbuffer.info.pMappedData, &scaled, sizeof(glm::mat4));
+      writer.writeBuffer(1, uploadbuffer.buffer, sizeof(glm::mat4), 0,
                          VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-      writer.updateSet(_device, imageSet.at(1));
+      writer.updateSet(_device, imageSet.at(0));
     }
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _trianglePipelineLayout, 0, imageSet.size(),
@@ -551,8 +549,9 @@ void RenderEngine::initDescriptors() {
   {
     DescriptorLayoutBuilder builder;
     builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    _singleImageDescriptorLayout =
-        builder.build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+    builder.addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    _perObjectDescriptorLayout = builder.build(
+        _device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
   }
 
   for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -610,7 +609,7 @@ void RenderEngine::initBackgroundPipelines() {
 
 void RenderEngine::initTrianglePipeline() {
   VkShaderModule triangleFragShader;
-  if (!vkutil::loadShaderModule("shaders/colored_triangle.frag.spv", _device,
+  if (!vkutil::loadShaderModule("shaders/sprite.frag.spv", _device,
                                 &triangleFragShader)) {
     fmt::print("Error when building the triangle fragment shader module");
   } else {
@@ -618,7 +617,7 @@ void RenderEngine::initTrianglePipeline() {
   }
 
   VkShaderModule triangleVertexShader;
-  if (!vkutil::loadShaderModule("shaders/colored_triangle.vert.spv", _device,
+  if (!vkutil::loadShaderModule("shaders/sprite.vert.spv", _device,
                                 &triangleVertexShader)) {
     fmt::print("Error when building the triangle vertex shader module");
   } else {
@@ -633,11 +632,7 @@ void RenderEngine::initTrianglePipeline() {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo =
       vkinit::pipelineLayoutCreateInfo();
 
-  DescriptorLayoutBuilder perObjectLayoutBuilder;
-  perObjectLayoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  VkDescriptorSetLayout perObjectLayout =
-      perObjectLayoutBuilder.build(_device, VK_SHADER_STAGE_VERTEX_BIT);
-  auto layouts = std::array{_singleImageDescriptorLayout, perObjectLayout};
+  auto layouts = std::array{_perObjectDescriptorLayout};
   pipelineLayoutInfo.pSetLayouts = layouts.data();
   pipelineLayoutInfo.setLayoutCount = layouts.size();
   pipelineLayoutInfo.pPushConstantRanges = &bufferRange;

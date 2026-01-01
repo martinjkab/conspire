@@ -10,7 +10,7 @@ layout(buffer_reference,std430)readonly buffer VertexBuffer{
 	Vertex vertices[];
 };
 
-layout(set=1,binding=0)uniform PerObject{
+layout(binding=1)uniform PerObject{
 	mat4 model;
 }ubo;
 
