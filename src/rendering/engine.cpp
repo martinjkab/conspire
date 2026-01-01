@@ -27,6 +27,7 @@
 #include "vk_mem_alloc.h"
 #include "asset_store.h"
 #include "render_list.h"
+#include "uniforms/global_uniform.h"
 
 const char* APP_NAME = "Conspire";
 const uint32_t WIDTH = 800;
@@ -322,6 +323,28 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
 
   vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+  {
+    auto globalLayouts = std::vector{_globalDescriptorLayout};
+    std::vector<VkDescriptorSet> globalSet =
+        getCurrentFrame()._frameDescriptors.allocate(_device, globalLayouts);
+
+    DescriptorWriter writer;
+    AllocatedBuffer uploadbuffer = createBuffer(
+        sizeof(GlobalUniform), VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT,
+        VMA_MEMORY_USAGE_CPU_TO_GPU);
+    glm::mat4 projection = glm::ortho(0.0f, float(_drawExtent.width), 0.0f,
+                                      float(_drawExtent.height), -1.0f, 1.0f);
+    GlobalUniform uniform{projection};
+    memcpy(uploadbuffer.info.pMappedData, &uniform, sizeof(GlobalUniform));
+    writer.writeBuffer(0, uploadbuffer.buffer, sizeof(GlobalUniform), 0,
+                       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.updateSet(_device, globalSet.at(0));
+
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _trianglePipelineLayout, 0, globalSet.size(),
+                            globalSet.data(), 0, nullptr);
+  }
+
   for (auto item : renderList.items) {
     auto imageSetLayouts = std::vector{_perObjectDescriptorLayout};
     std::vector<VkDescriptorSet> imageSet =
@@ -348,7 +371,7 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
       writer.updateSet(_device, imageSet.at(0));
     }
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _trianglePipelineLayout, 0, imageSet.size(),
+                            _trianglePipelineLayout, 1, imageSet.size(),
                             imageSet.data(), 0, nullptr);
 
     auto bufferData = assetStore[item.meshHandle];
@@ -554,6 +577,13 @@ void RenderEngine::initDescriptors() {
         _device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
   }
 
+  {
+    DescriptorLayoutBuilder builder;
+    builder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    _globalDescriptorLayout = builder.build(
+        _device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+  }
+
   for (int i = 0; i < FRAME_OVERLAP; i++) {
     std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_sizes = {
         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
@@ -632,7 +662,8 @@ void RenderEngine::initTrianglePipeline() {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo =
       vkinit::pipelineLayoutCreateInfo();
 
-  auto layouts = std::array{_perObjectDescriptorLayout};
+  auto layouts =
+      std::array{_globalDescriptorLayout, _perObjectDescriptorLayout};
   pipelineLayoutInfo.pSetLayouts = layouts.data();
   pipelineLayoutInfo.setLayoutCount = layouts.size();
   pipelineLayoutInfo.pPushConstantRanges = &bufferRange;

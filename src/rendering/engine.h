@@ -100,6 +100,8 @@ class RenderEngine {
   VkPipelineLayout _trianglePipelineLayout;
   VkPipeline _trianglePipeline;
   VkSampler _defaultSamplerNearest;
+
+  VkDescriptorSetLayout _globalDescriptorLayout;
   VkDescriptorSetLayout _perObjectDescriptorLayout;
 
   VkCommandPool _immCommandPool;

@@ -154,7 +154,8 @@ void DescriptorAllocatorGrowable::destroyPools(VkDevice device) {
 }
 
 std::vector<VkDescriptorSet> DescriptorAllocatorGrowable::allocate(
-    VkDevice device, std::vector<VkDescriptorSetLayout>& layout, void* pNext) {
+    VkDevice device, const std::vector<VkDescriptorSetLayout>& layout,
+    void* pNext) {
   // get or create a pool to allocate from
   VkDescriptorPool poolToUse = getPool(device);
 

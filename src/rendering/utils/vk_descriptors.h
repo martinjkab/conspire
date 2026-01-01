@@ -43,7 +43,7 @@ struct DescriptorAllocatorGrowable {
   void destroyPools(VkDevice device);
 
   std::vector<VkDescriptorSet> allocate(
-      VkDevice device, std::vector<VkDescriptorSetLayout>& layout,
+      VkDevice device, const std::vector<VkDescriptorSetLayout>& layout,
       void* pNext = nullptr);
 
  private:

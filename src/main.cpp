@@ -20,24 +20,22 @@ int main() {
 
   auto assetStore = AssetStore{};
   auto mesh = Mesh{assetStore.add(engine->uploadMesh(
-      {{glm::vec4{-0.5f, -0.5f, 0.0f, 1.0f}, glm::vec2{0.0f, 0.0f}},
-       {glm::vec4{0.5f, -0.5f, 0.0f, 1.0f}, glm::vec2{1.0f, 0.0f}},
-       {glm::vec4{0.5f, 0.5f, 0.0f, 1.0f}, glm::vec2{1.0f, 1.0f}},
-       {glm::vec4{-0.5f, 0.5f, 0.0f, 1.0f}, glm::vec2{0.0f, 1.0f}}},
+      {{glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}, glm::vec2{0.0f, 0.0f}},
+       {glm::vec4{1.0f, 0.0f, 0.0f, 1.0f}, glm::vec2{1.0f, 0.0f}},
+       {glm::vec4{1.0f, 1.0f, 0.0f, 1.0f}, glm::vec2{1.0f, 1.0f}},
+       {glm::vec4{0.0f, 1.0f, 0.0f, 1.0f}, glm::vec2{0.0f, 1.0f}}},
       {0, 1, 2, 2, 3, 0}))};
 
   World world{};
   world.addResource(assetStore);
   world.addResource(RenderList{});
   world.addEntity(
-      Transform{glm::translate(glm::mat4{1.0}, glm::vec3{-0.5, -0.5, 0.0})},
-      mesh,
+      Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0, 0, 0.0})}, mesh,
       Texture{
           assetStore.add(engine->uploadTexture("assets/sprites/rock.png"))});
-  world.addEntity(
-      Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0.5, 0.5, 0.0})}, mesh,
-      Texture{
-          assetStore.add(engine->uploadTexture("assets/sprites/warrior.png"))});
+  // world.addEntity(Transform{glm::mat4{1.0}}, mesh,
+  //                 Texture{assetStore.add(
+  //                     engine->uploadTexture("assets/sprites/rock.png"))});
   // world.addSystem([](Query<Transform> transformQuery) {
   //   for (auto transformTuple : transformQuery) {
   //     const auto [transform] = transformTuple;
