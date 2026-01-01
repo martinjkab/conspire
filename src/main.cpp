@@ -23,6 +23,7 @@ int main() {
 
   world.addSystem(STARTUP,
                   [](Resource<RenderEngine> engine) { engine->init(); });
+
   world.addSystem(STARTUP, [](Resource<RenderEngine> engine,
                               Resource<AssetStore> assetStore, World& world) {
     auto meshHandle = engine->uploadMesh(
