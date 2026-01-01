@@ -9,7 +9,7 @@
 #include "ecs/query.h"
 #include "rendering/components/transform.h"
 #include "rendering/engine.h"
-#include "rendering/mesh_store.h"
+#include "rendering/asset_store.h"
 #include "rendering/components/mesh.h"
 #include "rendering/render_list.h"
 
@@ -17,8 +17,8 @@ int main() {
   auto engine = std::make_shared<RenderEngine>(RenderEngine{});
   engine->init();
 
-  auto meshStore = MeshStore{};
-  auto mesh = Mesh{meshStore.add(engine->uploadMesh(
+  auto assetStore = AssetStore{};
+  auto mesh = Mesh{assetStore.add(engine->uploadMesh(
       {{glm::vec4{-0.5f, -0.5f, 0.0f, 1.0f}, glm::vec2{0.0f, 0.0f}},
        {glm::vec4{0.5f, -0.5f, 0.0f, 1.0f}, glm::vec2{1.0f, 0.0f}},
        {glm::vec4{0.5f, 0.5f, 0.0f, 1.0f}, glm::vec2{1.0f, 1.0f}},
@@ -26,7 +26,7 @@ int main() {
       {0, 1, 2, 2, 3, 0}))};
 
   World world{};
-  world.addResource(meshStore);
+  world.addResource(assetStore);
   world.addResource(RenderList{});
   world.addEntity(
       Transform{glm::translate(glm::mat4{1.0}, glm::vec3{-0.5, -0.5, 0.0})},
@@ -34,6 +34,13 @@ int main() {
   world.addEntity(
       Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0.5, 0.5, 0.0})},
       mesh);
+  // world.addSystem([](Query<Transform> transformQuery) {
+  //   for (auto transformTuple : transformQuery) {
+  //     const auto [transform] = transformTuple;
+  //     transform->model =
+  //         glm::translate(transform->model, glm::vec3{-0.005, -0.005, 0.0});
+  //   }
+  // });
   world.addSystem([](Query<Transform, Mesh> transformQuery,
                      Resource<RenderList> renderList) {
     renderList->items.clear();
@@ -44,8 +51,8 @@ int main() {
     }
   });
   world.addSystem(
-      [&](Resource<RenderList> renderList, Resource<MeshStore> meshStore) {
-        engine->mainLoop(*meshStore, *renderList);
+      [&](Resource<RenderList> renderList, Resource<AssetStore> assetStore) {
+        engine->mainLoop(*assetStore, *renderList);
       });
 
   try {
@@ -54,7 +61,7 @@ int main() {
       world.runSystems();
       auto end = std::chrono::high_resolution_clock::now();
       auto diff = begin - end;
-      auto sleep = std::chrono::milliseconds(1000) - diff;
+      auto sleep = std::chrono::milliseconds(17) - diff;
       if (sleep.count() > 0) {
         std::this_thread::sleep_for(sleep);
       }

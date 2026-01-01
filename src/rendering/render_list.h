@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 
 struct RenderListItem {
-  int meshHandle;
+  AssetHandle<MeshBuffer> meshHandle;
   glm::mat4 model;
 };
 

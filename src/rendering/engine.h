@@ -31,7 +31,7 @@
 
 #include "utils/vk_descriptors.h"
 #include "utils/vk_types.h"
-#include "mesh_store.h"
+#include "asset_store.h"
 #include "render_list.h"
 #include <glm/glm.hpp>
 #include "vertex.h"
@@ -54,7 +54,7 @@ constexpr unsigned int FRAME_OVERLAP = 2;
 class RenderEngine {
  public:
   void init();
-  void mainLoop(const MeshStore& meshStore, const RenderList& renderList);
+  void mainLoop(const AssetStore& assetStore, const RenderList& renderList);
   AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage,
                                VmaMemoryUsage memoryUsage);
   VkDeviceAddress getBufferDeviceAddress(VkBufferDeviceAddressInfo& info);
@@ -110,9 +110,9 @@ class RenderEngine {
   void initSwapchain();
   void initCommands();
   void initSyncStructures();
-  void draw(const MeshStore& meshStore, const RenderList& renderList);
+  void draw(const AssetStore& assetStore, const RenderList& renderList);
   void drawBackground(VkCommandBuffer cmd) const;
-  void drawGeometry(VkCommandBuffer cmd, const MeshStore& meshStore,
+  void drawGeometry(VkCommandBuffer cmd, const AssetStore& assetStore,
                     const RenderList& renderList);
   void initVulkan();
   void initDescriptors();

@@ -24,7 +24,7 @@
 
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
-#include "mesh_store.h"
+#include "asset_store.h"
 #include "render_list.h"
 
 const char* APP_NAME = "Conspire";
@@ -202,7 +202,7 @@ void RenderEngine::initSyncStructures() {
   VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
 }
 
-void RenderEngine::draw(const MeshStore& meshStore,
+void RenderEngine::draw(const AssetStore& assetStore,
                         const RenderList& renderList) {
   VK_CHECK(vkWaitForFences(_device, 1, &getCurrentFrame()._renderFence, true,
                            1000000000));
@@ -234,7 +234,7 @@ void RenderEngine::draw(const MeshStore& meshStore,
   vkutil::transitionImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-  drawGeometry(cmd, meshStore, renderList);
+  drawGeometry(cmd, assetStore, renderList);
 
   vkutil::transitionImage(cmd, _drawImage.image,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -291,7 +291,8 @@ void RenderEngine::drawBackground(VkCommandBuffer cmd) const {
                 std::ceil(_drawExtent.height / 16.0), 1);
 }
 
-void RenderEngine::drawGeometry(VkCommandBuffer cmd, const MeshStore& meshStore,
+void RenderEngine::drawGeometry(VkCommandBuffer cmd,
+                                const AssetStore& assetStore,
                                 const RenderList& renderList) {
   VkRenderingAttachmentInfo colorAttachment = vkinit::attachmentInfo(
       _drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -352,7 +353,7 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd, const MeshStore& meshStore,
                             _trianglePipelineLayout, 0, imageSet.size(),
                             imageSet.data(), 0, nullptr);
 
-    auto bufferData = meshStore[item.meshHandle];
+    auto bufferData = assetStore[item.meshHandle];
     vkCmdPushConstants(cmd, _trianglePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
                        0, sizeof(VkDeviceAddress),
                        &(bufferData.vertexBufferAddress));
@@ -692,9 +693,9 @@ std::vector<uint8_t> RenderEngine::loadSprite(std::string path) {
   return image;
 }
 
-void RenderEngine::mainLoop(const MeshStore& meshStore,
+void RenderEngine::mainLoop(const AssetStore& assetStore,
                             const RenderList& renderList) {
-  draw(meshStore, renderList);
+  draw(assetStore, renderList);
   glfwPollEvents();
 }
 
