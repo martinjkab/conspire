@@ -19,12 +19,6 @@
 #include "utils/vec_to_tuple.h"
 #include "phase.h"
 
-class World;
-
-template <typename T>
-concept IsSystemParam =
-    (IsQuery<T> || IsResource<T> || std::is_same_v<T, World&>);
-
 class World {
  public:
   World() = default;
@@ -48,36 +42,12 @@ class World {
         std::forward_as_tuple(args...));
   }
 
-  template <typename Func>
-  void addSystem(Phase phase, Func&& system) {
-    using FuncTraits = function_traits<std::decay_t<Func>>;
-    addSystemImpl(phase, std::forward<Func>(system),
-                  std::make_index_sequence<FuncTraits::arity>{});
-  }
-
   template <typename T>
   void addResource(T&& resource) {
     using DecayedT = typename std::decay<T>::type;
     resources[typeid(DecayedT)] =
         std::make_shared<DecayedT>(std::forward<T>(resource));
   }
-
-  void runSystems(Phase phase) {
-    for (auto system : systems[phase]) {
-      system();
-    }
-  }
-
-  bool shouldQuit = false;
-
- private:
-  int entityCounter = 0;
-  TypeMap<ComponentBase, std::vector<std::shared_ptr<ComponentBase>>>
-      components;
-  TypeMap<ComponentBase, std::unordered_map<int, size_t>>
-      entityToComponentIndex;
-  std::unordered_map<std::type_index, std::shared_ptr<void>> resources;
-  std::unordered_map<Phase, std::vector<std::function<void()>>> systems;
 
   template <typename T>
   void processIntersection(std::vector<int>& intersection, bool& first) {
@@ -135,24 +105,11 @@ class World {
     return static_pointer_cast<ResourceType>(resources[typeid(ResourceType)]);
   }
 
-  template <typename Func, std::size_t... Is>
-  void addSystemImpl(Phase phase, Func&& system, std::index_sequence<Is...>) {
-    using FuncTraits = function_traits<std::decay_t<Func>>;
-    static_assert((IsSystemParam<typename FuncTraits::template arg<Is>> && ...),
-                  "All arguments must be SystemParams");
-
-    systems[phase].emplace_back(
-        [this, system = std::forward<Func>(system)]() mutable {
-          system([this]() -> decltype(auto) {
-            using ArgType = typename FuncTraits::template arg<Is>;
-            if constexpr (IsResource<ArgType>) {
-              return this->getResource<ArgType>();
-            } else if constexpr (IsQuery<ArgType>) {
-              return this->getQuery<ArgType>();
-            } else {
-              return *this;
-            }
-          }()...);
-        });
-  }
+ private:
+  int entityCounter = 0;
+  TypeMap<ComponentBase, std::vector<std::shared_ptr<ComponentBase>>>
+      components;
+  TypeMap<ComponentBase, std::unordered_map<int, size_t>>
+      entityToComponentIndex;
+  std::unordered_map<std::type_index, std::shared_ptr<void>> resources;
 };
