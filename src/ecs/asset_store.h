@@ -1,10 +1,7 @@
 #pragma once
 
 #include <unordered_map>
-#include <vulkan/vulkan.hpp>
 #include <memory>
-
-#include "mesh_buffer.h"
 
 template <typename T>
 struct AssetHandle {

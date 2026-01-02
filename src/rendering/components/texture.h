@@ -6,7 +6,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/io.hpp>
 
-#include "rendering/asset_store.h"
+#include "ecs/asset_store.h"
 #include "rendering/texture_buffer.h"
 
 struct Texture : ComponentBase {

@@ -2,7 +2,8 @@
 
 #include <vector>
 #include <glm/glm.hpp>
-#include "texture_buffer.h"
+#include "rendering/texture_buffer.h"
+#include "rendering/mesh_buffer.h"
 
 struct RenderListItem {
   AssetHandle<MeshBuffer> meshHandle;

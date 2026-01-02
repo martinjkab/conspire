@@ -25,7 +25,7 @@
 
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
-#include "asset_store.h"
+#include "ecs/asset_store.h"
 #include "render_list.h"
 #include "uniforms/global_uniform.h"
 

@@ -3,6 +3,7 @@
 #include <type_traits>
 
 #include "world.h"
+#include "ecs/plugin.h"
 
 template <typename T>
 concept IsSystemParam =
@@ -29,6 +30,8 @@ class App {
 
     return *this;
   }
+
+  App& addPlugin(const Plugin& plugin);
 
  private:
   World _world;

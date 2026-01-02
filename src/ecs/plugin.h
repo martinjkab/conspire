@@ -1,7 +1,9 @@
 #pragma once
-#include "world.h"
-#include "app.h"
+#include "ecs/world.h"
+#include "ecs/app.h"
+
+class App;
 
 struct Plugin {
-  virtual App& onAdd();
+  virtual void onAdd(App& app) const = 0;
 };

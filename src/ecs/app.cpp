@@ -29,3 +29,8 @@ void App::runSystems(Phase phase) {
     system();
   }
 }
+
+App& App::addPlugin(const Plugin& plugin) {
+  plugin.onAdd(*this);
+  return *this;
+}

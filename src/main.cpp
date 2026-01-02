@@ -5,44 +5,22 @@
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
-#include "app.h"
+#include "ecs/app.h"
 #include "ecs/query.h"
 #include "rendering/components/transform.h"
 #include "rendering/engine.h"
-#include "rendering/asset_store.h"
+#include "ecs/asset_store.h"
 #include "rendering/components/mesh.h"
 #include "rendering/render_list.h"
 #include "rendering/components/texture.h"
 #include "ecs/input_state.h"
 #include "ecs/app.h"
+#include "rendering/plugin.h"
 
 int main() {
   App{}
-      .addResource(RenderEngine{})
       .addResource(AssetStore{})
-      .addResource(RenderList{})
-      .addResource(InputState{})
-      .addSystem(STARTUP, [](Resource<RenderEngine> engine) { engine->init(); })
-      .addSystem(
-          STARTUP,
-          [](Resource<RenderEngine> engine, Resource<InputState> state) {
-            glfwSetWindowUserPointer(engine->getWindow(), state.get());
-
-            engine->setKeyCallback([](GLFWwindow* window, int key, int scancode,
-                                      int action, int mods) {
-              auto* state =
-                  static_cast<InputState*>(glfwGetWindowUserPointer(window));
-              if (key < 0 || key >= 256) return;
-
-              if (action == GLFW_PRESS) {
-                state->pressed.set(key);
-                state->down.set(key);
-              } else if (action == GLFW_RELEASE) {
-                state->released.set(key);
-                state->down.reset(key);
-              }
-            });
-          })
+      .addPlugin(RenderPlugin{})
       .addSystem(
           STARTUP,
           [](Resource<RenderEngine> engine, Resource<AssetStore> assetStore,
@@ -63,17 +41,6 @@ int main() {
             world.addEntity(
                 Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0, 0, 0.0})},
                 mesh, texture);
-          })
-      .addSystem(
-          UPDATE,
-          [](Query<Transform, Mesh, Texture> transformQuery,
-             Resource<RenderList> renderList) {
-            renderList->items.clear();
-            for (auto transformTuple : transformQuery) {
-              const auto [transform, mesh, texture] = transformTuple;
-              renderList->items.push_back(RenderListItem{
-                  mesh->getHandle(), texture->getHandle(), transform->model});
-            }
           })
       .addSystem(
           UPDATE,
@@ -98,17 +65,6 @@ int main() {
                   glm::translate(transform->model, direction * speed);
             }
           })
-      .addSystem(
-          UPDATE,
-          [](Resource<RenderList> renderList, Resource<AssetStore> assetStore,
-             Resource<RenderEngine> engine) {
-            engine->mainLoop(*assetStore, *renderList);
-          })
-      .addSystem(UPDATE,
-                 [](Resource<InputState> inputState) {
-                   inputState->pressed.reset();
-                   inputState->released.reset();
-                 })
       .run();
 
   return EXIT_SUCCESS;

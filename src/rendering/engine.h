@@ -31,11 +31,12 @@
 
 #include "utils/vk_descriptors.h"
 #include "utils/vk_types.h"
-#include "asset_store.h"
+#include "ecs/asset_store.h"
 #include "render_list.h"
 #include <glm/glm.hpp>
 #include "vertex.h"
-#include "texture_buffer.h"
+#include "rendering/texture_buffer.h"
+#include "rendering/mesh_buffer.h"
 
 extern const char* APP_NAME;
 extern const uint32_t WIDTH;
