@@ -39,14 +39,20 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/lvandeve/lodepng
     GIT_TAG        master
 )
+FetchContent_Declare(
+    fastgltf
+    GIT_REPOSITORY https://github.com/spnda/fastgltf.git
+    GIT_TAG        v0.9.0
+)
 FetchContent_MakeAvailable(fetch_vk_bootstrap)
 FetchContent_MakeAvailable(fetch_lodepng)
+FetchContent_MakeAvailable(fastgltf)
 
 # Create lodepng library target
 add_library(lodepng STATIC ${fetch_lodepng_SOURCE_DIR}/lodepng.cpp)
 target_include_directories(lodepng PUBLIC ${fetch_lodepng_SOURCE_DIR})
 
-target_link_libraries(conspire PRIVATE Vulkan::Vulkan glfw glm::glm vk-bootstrap::vk-bootstrap GPUOpen::VulkanMemoryAllocator fmt::fmt lodepng)
+target_link_libraries(conspire PRIVATE Vulkan::Vulkan glfw glm::glm vk-bootstrap::vk-bootstrap GPUOpen::VulkanMemoryAllocator fmt::fmt lodepng fastgltf::fastgltf)
 
 # Cross-platform settings
 if(MSVC)

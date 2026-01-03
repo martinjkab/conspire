@@ -16,6 +16,9 @@
 #include <set>
 #include <stdexcept>
 #include <vector>
+#include <fastgltf/core.hpp>
+#include <fastgltf/types.hpp>
+#include <fastgltf/glm_element_traits.hpp>
 
 #include "VkBootstrap.h"
 #include "utils/vk_images.h"
@@ -28,6 +31,7 @@
 #include "ecs/asset_store.h"
 #include "render_list.h"
 #include "uniforms/global_uniform.h"
+#include <fastgltf/tools.hpp>
 
 const char* APP_NAME = "Conspire";
 const uint32_t WIDTH = 800;
@@ -427,6 +431,44 @@ MeshBuffer RenderEngine::uploadMesh(std::vector<Vertex> vertices,
   vkDestroyBuffer(_device, staging.buffer, nullptr);
 
   return buffer;
+}
+
+MeshBuffer RenderEngine::uploadGltf(const std::filesystem::path& path) {
+  fastgltf::Parser parser;
+  auto data = fastgltf::GltfDataBuffer::FromPath(path);
+
+  if (data.error() != fastgltf::Error::None) {
+    throw data.error();
+  }
+
+  auto assetResult =
+      parser.loadGltfBinary(data.get(), path.parent_path(),
+                            fastgltf::Options::LoadGLBBuffers |
+                                fastgltf::Options::LoadExternalBuffers);
+  if (assetResult.error() != fastgltf::Error::None) {
+    throw assetResult.error();
+  }
+  const auto& asset = assetResult.get();
+
+  const auto& primitive = asset.meshes.at(0).primitives.at(0);
+
+  auto& posAccessor =
+      asset.accessors[primitive.findAttribute("POSITION")->accessorIndex];
+  auto& indexAccessor = asset.accessors[primitive.indicesAccessor.value()];
+
+  std::vector<Vertex> vertices(posAccessor.count);
+  std::vector<uint32_t> indices(indexAccessor.count);
+
+  fastgltf::iterateAccessorWithIndex<std::uint32_t>(
+      asset, indexAccessor,
+      [&](std::uint32_t index, size_t idx) { indices[idx] = index; });
+
+  fastgltf::iterateAccessorWithIndex<glm::vec3>(
+      asset, posAccessor, [&](glm::vec3 p, size_t idx) {
+        vertices[idx].position = glm::vec4{p, 1.};
+      });
+
+  return uploadMesh(vertices, indices);
 }
 
 TextureBuffer RenderEngine::uploadTexture(const std::string& path) {

@@ -28,6 +28,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include "utils/vk_descriptors.h"
 #include "utils/vk_types.h"
@@ -60,6 +61,7 @@ class RenderEngine {
 
   MeshBuffer uploadMesh(std::vector<Vertex> vertices,
                         std::vector<uint32_t> indices);
+  MeshBuffer uploadGltf(const std::filesystem::path& path);
   TextureBuffer uploadTexture(const std::string& path);
   void setKeyCallback(GLFWkeyfun callback);
   GLFWwindow* getWindow();
