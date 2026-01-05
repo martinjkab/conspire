@@ -3,6 +3,10 @@
 #include "ecs/plugin.h"
 #include "rendering/engine.h"
 #include "rendering/components/cameras/perspective_camera.h"
+#include "components/transform.h"
+#include "components/mesh.h"
+#include "components/texture.h"
+#include <ecs/input_state.h>
 
 struct RenderPlugin : public Plugin {
   void onAdd(App& app) const override {
@@ -14,7 +18,7 @@ struct RenderPlugin : public Plugin {
         .addSystem(STARTUP,
                    [](World& world) {
                      world.addEntity(
-                         Transform{},
+                         Transform{glm::mat4(1.0f)},
                          PerspectiveCamera{35.0f, 1.0f, 0.1f, 1000.0f});
                    })
         .addSystem(
@@ -54,7 +58,8 @@ struct RenderPlugin : public Plugin {
                Resource<RenderEngine> engine,
                Query<Transform, PerspectiveCamera> cameraQuery) {
               const auto [transform, camera] = *(cameraQuery.begin());
-              engine->mainLoop(*assetStore, *renderList, camera->projection());
+              engine->mainLoop(*assetStore, *renderList,
+                               transform->model * camera->projection());
             })
         .addSystem(UPDATE, [](Resource<InputState> inputState) {
           inputState->pressed.reset();
