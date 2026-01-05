@@ -21,22 +21,22 @@ int main() {
   App{}
       .addResource(AssetStore{})
       .addPlugin(RenderPlugin{})
-      .addSystem(
-          STARTUP,
-          [](Resource<RenderEngine> engine, Resource<AssetStore> assetStore,
-             World& world) {
-            auto meshHandle = engine->uploadGltf("assets/models/rat.glb");
+      .addSystem(STARTUP,
+                 [](Resource<RenderEngine> engine,
+                    Resource<AssetStore> assetStore, World& world) {
+                   auto meshHandle =
+                       engine->uploadGltf("assets/models/rat.glb");
 
-            auto textureHandle =
-                engine->uploadTexture("assets/sprites/rock.png");
+                   auto textureHandle =
+                       engine->uploadTexture("assets/sprites/rat_albedo.png");
 
-            auto mesh = Mesh{assetStore->add(meshHandle)};
-            auto texture = Texture{assetStore->add(textureHandle)};
+                   auto mesh = Mesh{assetStore->add(meshHandle)};
+                   auto texture = Texture{assetStore->add(textureHandle)};
 
-            world.addEntity(
-                Transform{glm::translate(glm::mat4{1.0}, glm::vec3{0, 0, 0.0})},
-                mesh, texture);
-          })
+                   world.addEntity(Transform{glm::translate(
+                                       glm::mat4{1.0}, glm::vec3{0, 0, -75.0})},
+                                   mesh, texture);
+                 })
       .addSystem(
           UPDATE,
           [](Query<Transform> transformQuery, Resource<InputState> inputState) {
@@ -60,6 +60,15 @@ int main() {
                   glm::translate(transform->model, direction * speed);
             }
           })
+      .addSystem(UPDATE,
+                 [](Query<Transform> transformQuery) {
+                   for (auto transformTuple : transformQuery) {
+                     const auto [transform] = transformTuple;
+                     transform->model =
+                         glm::rotate(transform->model, glm::radians(10.0f),
+                                     glm::vec3(0.0f, 1.0f, 0.0f));
+                   }
+                 })
       .run();
 
   return EXIT_SUCCESS;

@@ -1,7 +1,8 @@
 #pragma once
 
 #include "ecs/plugin.h"
-#include "engine.h"
+#include "rendering/engine.h"
+#include "rendering/components/cameras/perspective_camera.h"
 
 struct RenderPlugin : public Plugin {
   void onAdd(App& app) const override {
@@ -10,6 +11,12 @@ struct RenderPlugin : public Plugin {
         .addResource(InputState{})
         .addSystem(STARTUP,
                    [](Resource<RenderEngine> engine) { engine->init(); })
+        .addSystem(STARTUP,
+                   [](World& world) {
+                     world.addEntity(
+                         Transform{},
+                         PerspectiveCamera{35.0f, 1.0f, 0.1f, 1000.0f});
+                   })
         .addSystem(
             STARTUP,
             [](Resource<RenderEngine> engine, Resource<InputState> state) {
@@ -44,8 +51,10 @@ struct RenderPlugin : public Plugin {
         .addSystem(
             UPDATE,
             [](Resource<RenderList> renderList, Resource<AssetStore> assetStore,
-               Resource<RenderEngine> engine) {
-              engine->mainLoop(*assetStore, *renderList);
+               Resource<RenderEngine> engine,
+               Query<Transform, PerspectiveCamera> cameraQuery) {
+              const auto [transform, camera] = *(cameraQuery.begin());
+              engine->mainLoop(*assetStore, *renderList, camera->projection());
             })
         .addSystem(UPDATE, [](Resource<InputState> inputState) {
           inputState->pressed.reset();

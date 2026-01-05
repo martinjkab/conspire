@@ -34,5 +34,6 @@ class PipelineBuilder {
   void setColorAttachmentFormat(VkFormat format);
   void setDepthFormat(VkFormat format);
   void disableDepthtest();
+  void enableDepthtest();
   VkPipeline buildPipeline(VkDevice device);
 };

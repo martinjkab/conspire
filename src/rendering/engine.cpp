@@ -134,6 +134,15 @@ void RenderEngine::initSwapchain() {
   _drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
   _drawImage.imageExtent = drawImageExtent;
 
+  _depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
+  _depthImage.imageExtent = drawImageExtent;
+
+  VkImageUsageFlags depthImageUsages =
+      VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+  VkImageCreateInfo dimg_info = vkinit::imageCreateInfo(
+      _depthImage.imageFormat, depthImageUsages, drawImageExtent);
+
   VkImageUsageFlags drawImageUsages{};
   drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
   drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -151,11 +160,20 @@ void RenderEngine::initSwapchain() {
   vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image,
                  &_drawImage.allocation, nullptr);
 
+  vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image,
+                 &_depthImage.allocation, nullptr);
+
   VkImageViewCreateInfo rview_info = vkinit::imageviewCreateInfo(
       _drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
   VK_CHECK(
       vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
+
+  VkImageViewCreateInfo dview_info = vkinit::imageviewCreateInfo(
+      _depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+  VK_CHECK(
+      vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
 }
 
 void RenderEngine::initCommands() {
@@ -209,7 +227,8 @@ void RenderEngine::initSyncStructures() {
 }
 
 void RenderEngine::draw(const AssetStore& assetStore,
-                        const RenderList& renderList) {
+                        const RenderList& renderList,
+                        const glm::mat4& projection) {
   VK_CHECK(vkWaitForFences(_device, 1, &getCurrentFrame()._renderFence, true,
                            1000000000));
   getCurrentFrame()._frameDescriptors.clearPools(_device);
@@ -235,7 +254,10 @@ void RenderEngine::draw(const AssetStore& assetStore,
   vkutil::transitionImage(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-  drawGeometry(cmd, assetStore, renderList);
+  vkutil::transitionImage(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+  drawGeometry(cmd, assetStore, renderList, projection);
 
   vkutil::transitionImage(cmd, _drawImage.image,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -283,15 +305,21 @@ void RenderEngine::draw(const AssetStore& assetStore,
 
 void RenderEngine::drawGeometry(VkCommandBuffer cmd,
                                 const AssetStore& assetStore,
-                                const RenderList& renderList) {
+                                const RenderList& renderList,
+                                const glm::mat4& projection) {
   VkClearColorValue clearColorValue{0.0};
   VkClearValue clearValue{.color = clearColorValue};
   VkRenderingAttachmentInfo colorAttachment =
       vkinit::attachmentInfo(_drawImage.imageView, &clearValue,
                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  VkClearColorValue depthClearColorValue{1.0};
+  VkClearValue depthClearValue{.color = depthClearColorValue};
+  VkRenderingAttachmentInfo depthAttachment =
+      vkinit::attachmentInfo(_depthImage.imageView, &depthClearValue,
+                             VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
   VkRenderingInfo renderInfo =
-      vkinit::renderingInfo(_drawExtent, &colorAttachment, nullptr);
+      vkinit::renderingInfo(_drawExtent, &colorAttachment, &depthAttachment);
   vkCmdBeginRendering(cmd, &renderInfo);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
@@ -323,8 +351,6 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
     AllocatedBuffer uploadbuffer = createBuffer(
         sizeof(GlobalUniform), VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT,
         VMA_MEMORY_USAGE_CPU_TO_GPU);
-    glm::mat4 projection = glm::ortho(0.0f, float(_drawExtent.width), 0.0f,
-                                      float(_drawExtent.height), -1.0f, 1.0f);
     GlobalUniform uniform{projection};
     memcpy(uploadbuffer.info.pMappedData, &uniform, sizeof(GlobalUniform));
     writer.writeBuffer(0, uploadbuffer.buffer, sizeof(GlobalUniform), 0,
@@ -353,10 +379,10 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
       AllocatedBuffer uploadbuffer =
           createBuffer(sizeof(glm::mat4), VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT,
                        VMA_MEMORY_USAGE_CPU_TO_GPU);
-      auto scaled = glm::scale(
-          item.model, glm::vec3(textureData.image.imageExtent.width,
-                                textureData.image.imageExtent.height, 0));
-      memcpy(uploadbuffer.info.pMappedData, &scaled, sizeof(glm::mat4));
+      // auto scaled = glm::scale(
+      //     item.model, glm::vec3(textureData.image.imageExtent.width,
+      //                           textureData.image.imageExtent.height, 0));
+      memcpy(uploadbuffer.info.pMappedData, &(item.model), sizeof(glm::mat4));
       writer.writeBuffer(1, uploadbuffer.buffer, sizeof(glm::mat4), 0,
                          VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
       writer.updateSet(_device, imageSet.at(0));
@@ -372,7 +398,7 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
     vkCmdBindIndexBuffer(cmd, bufferData.indexBuffer.buffer, 0,
                          VK_INDEX_TYPE_UINT32);
 
-    vkCmdDrawIndexed(cmd, 6, 1, 0, 0, 0);
+    vkCmdDrawIndexed(cmd, bufferData.indexCount, 1, 0, 0, 0);
   }
 
   vkCmdEndRendering(cmd);
@@ -384,6 +410,9 @@ MeshBuffer RenderEngine::uploadMesh(std::vector<Vertex> vertices,
   const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
 
   MeshBuffer buffer;
+
+  buffer.indexCount = indices.size();
+  buffer.vertexCount = vertices.size();
 
   buffer.vertexBuffer = createBuffer(
       vertexBufferSize,
@@ -454,6 +483,8 @@ MeshBuffer RenderEngine::uploadGltf(const std::filesystem::path& path) {
 
   auto& posAccessor =
       asset.accessors[primitive.findAttribute("POSITION")->accessorIndex];
+  auto& uvAccessor =
+      asset.accessors[primitive.findAttribute("TEXCOORD_0")->accessorIndex];
   auto& indexAccessor = asset.accessors[primitive.indicesAccessor.value()];
 
   std::vector<Vertex> vertices(posAccessor.count);
@@ -467,6 +498,10 @@ MeshBuffer RenderEngine::uploadGltf(const std::filesystem::path& path) {
       asset, posAccessor, [&](glm::vec3 p, size_t idx) {
         vertices[idx].position = glm::vec4{p, 1.};
       });
+
+  fastgltf::iterateAccessorWithIndex<glm::vec2>(
+      asset, uvAccessor,
+      [&](glm::vec2 uv, size_t idx) { vertices[idx].tex = uv; });
 
   return uploadMesh(vertices, indices);
 }
@@ -667,13 +702,14 @@ void RenderEngine::initTrianglePipeline() {
   pipelineBuilder.setShaders(triangleVertexShader, triangleFragShader);
   pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
   pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
-  pipelineBuilder.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+  pipelineBuilder.setCullMode(VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE);
   pipelineBuilder.setMultisamplingNone();
   pipelineBuilder.disableBlending();
-  pipelineBuilder.disableDepthtest();
+  pipelineBuilder.enableDepthtest();
+  // pipelineBuilder.disableDepthtest();
 
   pipelineBuilder.setColorAttachmentFormat(_drawImage.imageFormat);
-  pipelineBuilder.setDepthFormat(VK_FORMAT_UNDEFINED);
+  pipelineBuilder.setDepthFormat(VK_FORMAT_D32_SFLOAT);
 
   _trianglePipeline = pipelineBuilder.buildPipeline(_device);
 
@@ -700,8 +736,9 @@ std::tuple<std::vector<uint8_t>, unsigned, unsigned> RenderEngine::loadSprite(
 }
 
 void RenderEngine::mainLoop(const AssetStore& assetStore,
-                            const RenderList& renderList) {
-  draw(assetStore, renderList);
+                            const RenderList& renderList,
+                            const glm::mat4& projection) {
+  draw(assetStore, renderList, projection);
   glfwPollEvents();
 }
 

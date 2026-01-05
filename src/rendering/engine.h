@@ -57,7 +57,8 @@ constexpr unsigned int FRAME_OVERLAP = 3;
 class RenderEngine {
  public:
   void init();
-  void mainLoop(const AssetStore& assetStore, const RenderList& renderList);
+  void mainLoop(const AssetStore& assetStore, const RenderList& renderList,
+                const glm::mat4& projection);
 
   MeshBuffer uploadMesh(std::vector<Vertex> vertices,
                         std::vector<uint32_t> indices);
@@ -94,6 +95,7 @@ class RenderEngine {
   std::vector<VkFramebuffer> _swapchainFramebuffers;
   VmaAllocator _allocator;
   AllocatedImage _drawImage;
+  AllocatedImage _depthImage;
   VkExtent2D _drawExtent;
   DescriptorAllocator globalDescriptorAllocator;
   VkPipelineLayout _trianglePipelineLayout;
@@ -112,9 +114,10 @@ class RenderEngine {
   void initSwapchain();
   void initCommands();
   void initSyncStructures();
-  void draw(const AssetStore& assetStore, const RenderList& renderList);
+  void draw(const AssetStore& assetStore, const RenderList& renderList,
+            const glm::mat4& projection);
   void drawGeometry(VkCommandBuffer cmd, const AssetStore& assetStore,
-                    const RenderList& renderList);
+                    const RenderList& renderList, const glm::mat4& projection);
   void initVulkan();
   void initDescriptors();
   void initPipelines();

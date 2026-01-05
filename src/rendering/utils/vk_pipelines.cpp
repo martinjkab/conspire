@@ -107,6 +107,18 @@ void PipelineBuilder::disableDepthtest() {
   _depthStencil.maxDepthBounds = 1.f;
 }
 
+void PipelineBuilder::enableDepthtest() {
+  _depthStencil.depthTestEnable = VK_TRUE;
+  _depthStencil.depthWriteEnable = VK_TRUE;
+  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+  _depthStencil.depthBoundsTestEnable = VK_FALSE;
+  _depthStencil.stencilTestEnable = VK_FALSE;
+  _depthStencil.front = {};
+  _depthStencil.back = {};
+  _depthStencil.minDepthBounds = 0.f;
+  _depthStencil.maxDepthBounds = 1.f;
+}
+
 VkPipeline PipelineBuilder::buildPipeline(VkDevice device) {
   VkPipelineViewportStateCreateInfo viewportState = {};
   viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
