@@ -37,33 +37,46 @@ int main() {
                                        glm::mat4{1.0}, glm::vec3{0, 0, -75.0})},
                                    mesh, texture);
                  })
-      .addSystem(
-          UPDATE,
-          [](Query<Transform> transformQuery, Resource<InputState> inputState) {
-            for (auto transformTuple : transformQuery) {
-              const auto [transform] = transformTuple;
-              auto direction = glm::vec3{0};
-              const float speed = 10.0f;
-              if (inputState->down.test(GLFW_KEY_A)) {
-                direction += glm::vec3(-1, 0, 0);
-              }
-              if (inputState->down.test(GLFW_KEY_D)) {
-                direction += glm::vec3(1, 0, 0);
-              }
-              if (inputState->down.test(GLFW_KEY_W)) {
-                direction += glm::vec3(0, -1, 0);
-              }
-              if (inputState->down.test(GLFW_KEY_S)) {
-                direction += glm::vec3(0, 1, 0);
-              }
-              transform->model =
-                  glm::translate(transform->model, direction * speed);
-            }
-          })
       .addSystem(UPDATE,
-                 [](Query<Transform> transformQuery) {
+                 [](Query<Transform, PerspectiveCamera> transformQuery,
+                    Resource<InputState> inputState) {
                    for (auto transformTuple : transformQuery) {
-                     const auto [transform] = transformTuple;
+                     const auto [transform, camera] = transformTuple;
+                     glm::vec3 direction{0.0f};
+                     const float speed = 1.0f;
+
+                     if (inputState->down.test(GLFW_KEY_W)) {
+                       direction.z -= 1.0f;
+                     }
+                     if (inputState->down.test(GLFW_KEY_S)) {
+                       direction.z += 1.0f;
+                     }
+                     if (inputState->down.test(GLFW_KEY_A)) {
+                       direction.x -= 1.0f;
+                     }
+                     if (inputState->down.test(GLFW_KEY_D)) {
+                       direction.x += 1.0f;
+                     }
+                     if (inputState->down.test(GLFW_KEY_SPACE)) {
+                       direction.y += 1.0f;
+                     }
+                     if (inputState->down.test(GLFW_KEY_LEFT_SHIFT)) {
+                       direction.y -= 1.0f;
+                     }
+
+                     if (glm::length(direction) > 0.0f) {
+                       direction = glm::normalize(direction);
+                       glm::mat3 rotation = glm::mat3(transform->model);
+                       glm::vec3 worldDirection = rotation * direction;
+                       transform->model = glm::translate(
+                           transform->model, worldDirection * speed);
+                     }
+                   }
+                 })
+      .addSystem(UPDATE,
+                 [](Query<Transform, Mesh> transformQuery) {
+                   for (auto transformTuple : transformQuery) {
+                     const auto [transform, mesh] = transformTuple;
                      transform->model =
                          glm::rotate(transform->model, glm::radians(10.0f),
                                      glm::vec3(0.0f, 1.0f, 0.0f));

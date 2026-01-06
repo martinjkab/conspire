@@ -2,8 +2,10 @@
 
 #include <bitset>
 
+static const int keyCount = 512;
+
 struct InputState {
-  std::bitset<256> pressed;
-  std::bitset<256> down;
-  std::bitset<256> released;
+  std::bitset<keyCount> pressed;
+  std::bitset<keyCount> down;
+  std::bitset<keyCount> released;
 };

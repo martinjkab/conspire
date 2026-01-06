@@ -17,9 +17,9 @@ struct RenderPlugin : public Plugin {
                    [](Resource<RenderEngine> engine) { engine->init(); })
         .addSystem(STARTUP,
                    [](World& world) {
-                     world.addEntity(
-                         Transform{glm::mat4(1.0f)},
-                         PerspectiveCamera{35.0f, 1.0f, 0.1f, 1000.0f});
+                     world.addEntity(Transform{glm::mat4(1.0f)},
+                                     PerspectiveCamera{glm::radians(90.0f),
+                                                       1.0f, 0.1f, 1000.0f});
                    })
         .addSystem(
             STARTUP,
@@ -58,8 +58,9 @@ struct RenderPlugin : public Plugin {
                Resource<RenderEngine> engine,
                Query<Transform, PerspectiveCamera> cameraQuery) {
               const auto [transform, camera] = *(cameraQuery.begin());
-              engine->mainLoop(*assetStore, *renderList,
-                               transform->model * camera->projection());
+              engine->mainLoop(
+                  *assetStore, *renderList,
+                  camera->projection() * glm::inverse(transform->model));
             })
         .addSystem(UPDATE, [](Resource<InputState> inputState) {
           inputState->pressed.reset();
