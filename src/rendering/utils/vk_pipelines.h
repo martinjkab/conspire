@@ -2,12 +2,16 @@
 
 #include <vulkan/vulkan.h>
 
+#include <cstdint>
 #include <vector>
 
 namespace vkutil {
 bool loadShaderModule(const char* filePath, VkDevice device,
                       VkShaderModule* outShaderModule);
-}
+
+bool createShaderModule(const uint8_t* data, size_t size, VkDevice device,
+                        VkShaderModule* outShaderModule);
+}  // namespace vkutil
 
 class PipelineBuilder {
  public:

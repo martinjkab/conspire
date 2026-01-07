@@ -655,16 +655,23 @@ void RenderEngine::initPipelines() { initTrianglePipeline(); }
 
 void RenderEngine::initTrianglePipeline() {
   VkShaderModule triangleFragShader;
-  if (!vkutil::loadShaderModule("shaders/sprite.frag.spv", _device,
-                                &triangleFragShader)) {
+  static const unsigned char fragmentData[] = {
+#embed "shaders/sprite.frag.spv"
+  };
+  if (!vkutil::createShaderModule(fragmentData, sizeof(fragmentData), _device,
+                                  &triangleFragShader)) {
     fmt::print("Error when building the triangle fragment shader module");
   } else {
     fmt::print("Triangle fragment shader succesfully loaded");
   }
 
   VkShaderModule triangleVertexShader;
-  if (!vkutil::loadShaderModule("shaders/sprite.vert.spv", _device,
-                                &triangleVertexShader)) {
+  static const unsigned char vertexData[] = {
+#embed "shaders/sprite.vert.spv"
+  };
+
+  if (!vkutil::createShaderModule(vertexData, sizeof(vertexData), _device,
+                                  &triangleVertexShader)) {
     fmt::print("Error when building the triangle vertex shader module");
   } else {
     fmt::print("Triangle vertex shader succesfully loaded");

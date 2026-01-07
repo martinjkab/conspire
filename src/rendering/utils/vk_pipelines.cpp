@@ -41,6 +41,24 @@ bool vkutil::loadShaderModule(const char* filePath, VkDevice device,
   return true;
 }
 
+bool vkutil::createShaderModule(const uint8_t* data, size_t size,
+                                VkDevice device,
+                                VkShaderModule* outShaderModule) {
+  VkShaderModuleCreateInfo createInfo = {};
+  createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  createInfo.pNext = nullptr;
+  createInfo.codeSize = size;
+  createInfo.pCode = reinterpret_cast<const uint32_t*>(data);
+
+  VkShaderModule shaderModule;
+  if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) !=
+      VK_SUCCESS) {
+    return false;
+  }
+  *outShaderModule = shaderModule;
+  return true;
+}
+
 void PipelineBuilder::setShaders(VkShaderModule vertexShader,
                                  VkShaderModule fragmentShader) {
   _shaderStages.clear();

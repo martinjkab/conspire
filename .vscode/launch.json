@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Conspire",
+            "name": "Debug Basic App",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/conspire",
+            "program": "${workspaceFolder}/build/basic_app",
             "args": [],
             "cwd": "${workspaceFolder}/build",
             "preLaunchTask": "Build Conspire"

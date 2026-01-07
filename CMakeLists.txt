@@ -20,14 +20,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Automatically find all source and header files
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h")
 
-# Add the executable
-add_executable(conspire ${SOURCES})
+# Add the library
+add_library(conspire STATIC ${SOURCES})
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
+
 include(FetchContent)
 FetchContent_Declare(
     fetch_vk_bootstrap
@@ -52,7 +53,7 @@ FetchContent_MakeAvailable(fastgltf)
 add_library(lodepng STATIC ${fetch_lodepng_SOURCE_DIR}/lodepng.cpp)
 target_include_directories(lodepng PUBLIC ${fetch_lodepng_SOURCE_DIR})
 
-target_link_libraries(conspire PRIVATE Vulkan::Vulkan glfw glm::glm vk-bootstrap::vk-bootstrap GPUOpen::VulkanMemoryAllocator fmt::fmt lodepng fastgltf::fastgltf)
+target_link_libraries(conspire PUBLIC Vulkan::Vulkan glfw glm::glm vk-bootstrap::vk-bootstrap GPUOpen::VulkanMemoryAllocator fmt::fmt lodepng fastgltf::fastgltf)
 
 # Cross-platform settings
 if(MSVC)
@@ -61,7 +62,7 @@ else()
     target_compile_options(conspire PRIVATE -Wall -Wextra -pedantic)
 endif()
 
-target_include_directories(conspire PRIVATE
+target_include_directories(conspire PUBLIC
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/ecs
     ${CMAKE_SOURCE_DIR}/rendering
@@ -103,24 +104,41 @@ if(GLSL_SOURCE_FILES)
     # Create a target for compiling shaders that depends on the generated SPIR-V files
     add_custom_target(Shaders DEPENDS ${SPIRV_FILES})
 
-    # Make the main executable depend on the Shaders target
+    # Make the engine depend on the Shaders target
     add_dependencies(conspire Shaders)
-
-    # Copy compiled shaders to the executable directory after build
-    add_custom_command(TARGET conspire POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${CMAKE_CURRENT_BINARY_DIR}/shaders"
-                "$<TARGET_FILE_DIR:conspire>/shaders"
-        COMMENT "Copying shaders to executable directory"
-    )
 endif()
 
-# Copy assets folder to the executable directory after build
-if(EXISTS "${CMAKE_SOURCE_DIR}/src/assets")
-    add_custom_command(TARGET conspire POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${CMAKE_SOURCE_DIR}/src/assets"
-                "$<TARGET_FILE_DIR:conspire>/assets"
-        COMMENT "Copying assets to executable directory"
-    )
+
+# --- Examples ---
+option(BUILD_EXAMPLES "Build examples" ON)
+
+if(BUILD_EXAMPLES)
+    function(add_conspire_example NAME)
+        add_executable(${NAME} examples/${NAME}/main.cpp)
+        target_link_libraries(${NAME} PRIVATE conspire)
+
+        if(TARGET Shaders)
+            add_dependencies(${NAME} Shaders)
+            # Copy compiled shaders to the executable directory after build
+            add_custom_command(TARGET ${NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                        "${CMAKE_CURRENT_BINARY_DIR}/shaders"
+                        "$<TARGET_FILE_DIR:${NAME}>/shaders"
+                COMMENT "Copying shaders to executable directory"
+            )
+        endif()
+
+        # Copy assets folder to the executable directory after build
+        if(EXISTS "${CMAKE_SOURCE_DIR}/examples/assets")
+            add_custom_command(TARGET ${NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                        "${CMAKE_SOURCE_DIR}/examples/assets"
+                        "$<TARGET_FILE_DIR:${NAME}>/assets"
+                COMMENT "Copying assets to executable directory"
+            )
+        endif()
+    endfunction()
+
+    add_conspire_example(basic_app)
 endif()
+
