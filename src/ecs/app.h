@@ -31,6 +31,13 @@ class App {
     return *this;
   }
 
+  template <typename T>
+  App& addEvent(T&& event) {
+    _world.addResource(EventStore<T>());
+
+    return *this;
+  }
+
   App& addPlugin(const Plugin& plugin);
 
  private:
