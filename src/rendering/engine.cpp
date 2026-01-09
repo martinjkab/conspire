@@ -5,13 +5,13 @@
 #include <ecs/asset_store.h>
 #include <fmt/base.h>
 #include <lodepng.h>
-#include <render_list.h>
 #include <rendering/engine.h>
+#include <rendering/render_list.h>
+#include <rendering/uniforms/global_uniform.h>
 #include <rendering/utils/vk_images.h>
 #include <rendering/utils/vk_init.h>
 #include <rendering/utils/vk_pipelines.h>
 #include <rendering/utils/vk_utils.h>
-#include <uniforms/global_uniform.h>
 #include <vk_mem_alloc.h>
 
 #include <algorithm>
