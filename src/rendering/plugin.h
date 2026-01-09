@@ -1,14 +1,14 @@
 #pragma once
 
-#include "ecs/plugin.h"
-#include "rendering/engine.h"
-#include "rendering/components/cameras/perspective_camera.h"
-#include "components/transform.h"
-#include "components/mesh.h"
-#include "components/texture.h"
+#include <components/mesh.h>
+#include <components/texture.h>
+#include <components/transform.h>
+#include <core/window_handle.h>
+#include <ecs/plugin.h>
 #include <input/input_state.h>
 #include <input/mouse/mouse_motion.h>
-#include <core/window_handle.h>
+#include <rendering/components/cameras/perspective_camera.h>
+#include <rendering/engine.h>
 
 struct RenderPlugin : public Plugin {
   void onAdd(App& app) const override {

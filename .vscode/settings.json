@@ -85,7 +85,10 @@
     "source_location": "cpp",
     "variant": "cpp"
   },
-  "C_Cpp.clang_format_sortIncludes": false,
+  "C_Cpp.clang_format_sortIncludes": true,
   "C_Cpp.formatting": "clangFormat",
-  "C_Cpp.clang_format_fallbackStyle": "Google"
+  "C_Cpp.clang_format_fallbackStyle": "Google",
+  "C_Cpp.codeAnalysis.clangTidy.enabled": true,
+  "C_Cpp.codeAnalysis.clangTidy.path": "clang-tidy",
+  "C_Cpp.codeAnalysis.clangTidy.config": "${workspaceFolder}/.clang-tidy"
 }

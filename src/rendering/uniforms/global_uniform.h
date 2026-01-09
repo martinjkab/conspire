@@ -1,7 +1,8 @@
 #pragma once
 
+#include <rendering/concepts/gpu_aligned.h>
+
 #include <glm/glm.hpp>
-#include "rendering/concepts/gpu_aligned.h"
 
 struct alignas(16) GlobalUniform {
   glm::mat4 viewProjection;

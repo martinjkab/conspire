@@ -1,5 +1,14 @@
 #pragma once
 
+#include <component.h>
+#include <phase.h>
+#include <query.h>
+#include <resource.h>
+#include <utils/function_traits.h>
+#include <utils/remove_smart_ptr.h>
+#include <utils/type_map.h>
+#include <utils/vec_to_tuple.h>
+
 #include <functional>
 #include <iostream>
 #include <map>
@@ -9,15 +18,6 @@
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
-
-#include "component.h"
-#include "query.h"
-#include "resource.h"
-#include "utils/function_traits.h"
-#include "utils/remove_smart_ptr.h"
-#include "utils/type_map.h"
-#include "utils/vec_to_tuple.h"
-#include "phase.h"
 
 class World {
  public:

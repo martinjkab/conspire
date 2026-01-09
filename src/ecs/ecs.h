@@ -1,3 +1,3 @@
-#include "component.h"
-#include "query.h"
-#include "world.h"
+#include <component.h>
+#include <query.h>
+#include <world.h>

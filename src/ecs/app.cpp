@@ -1,4 +1,5 @@
-#include "app.h"
+#include <ecs/app.h>
+
 #include <thread>
 
 void App::run() {

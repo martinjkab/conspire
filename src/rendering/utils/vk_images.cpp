@@ -1,6 +1,6 @@
 #include "vk_images.h"
 
-#include "vk_init.h"
+#include <utils/vk_init.h>
 
 void vkutil::transitionImage(VkCommandBuffer cmd, VkImage image,
                              VkImageLayout currentLayout,

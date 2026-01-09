@@ -1,13 +1,13 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include <glm/vec3.hpp>
-
-#include "ecs/ecs.h"
 #define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/io.hpp>
+#include <ecs/asset_store.h>
+#include <rendering/mesh_buffer.h>
 
-#include "ecs/asset_store.h"
-#include "rendering/mesh_buffer.h"
+#include <glm/gtx/io.hpp>
 
 struct Mesh : ComponentBase {
   Mesh(AssetHandle<MeshBuffer> handle) : handle{handle} {}

@@ -1,12 +1,19 @@
-#include "engine.h"
-
+#include <VkBootstrap.h>
+#include <engine.h>
 #include <fmt/base.h>
 #include <lodepng.h>
+#include <utils/vk_images.h>
+#include <utils/vk_init.h>
+#include <utils/vk_pipelines.h>
+#include <utils/vk_utils.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fastgltf/core.hpp>
+#include <fastgltf/glm_element_traits.hpp>
+#include <fastgltf/types.hpp>
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -16,21 +23,14 @@
 #include <set>
 #include <stdexcept>
 #include <vector>
-#include <fastgltf/core.hpp>
-#include <fastgltf/types.hpp>
-#include <fastgltf/glm_element_traits.hpp>
-
-#include "VkBootstrap.h"
-#include "utils/vk_images.h"
-#include "utils/vk_init.h"
-#include "utils/vk_pipelines.h"
-#include "utils/vk_utils.h"
 
 #define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
-#include "ecs/asset_store.h"
-#include "render_list.h"
-#include "uniforms/global_uniform.h"
+#include <core/platform.h>
+#include <ecs/asset_store.h>
+#include <render_list.h>
+#include <uniforms/global_uniform.h>
+#include <vk_mem_alloc.h>
+
 #include <fastgltf/tools.hpp>
 
 const char* APP_NAME = "Conspire";

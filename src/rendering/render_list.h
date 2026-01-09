@@ -1,9 +1,10 @@
 #pragma once
 
-#include <vector>
+#include <rendering/mesh_buffer.h>
+#include <rendering/texture_buffer.h>
+
 #include <glm/glm.hpp>
-#include "rendering/texture_buffer.h"
-#include "rendering/mesh_buffer.h"
+#include <vector>
 
 struct RenderListItem {
   AssetHandle<MeshBuffer> meshHandle;

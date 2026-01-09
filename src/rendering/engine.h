@@ -1,43 +1,23 @@
 #pragma once
 
-#if defined(_WIN32)
-#define VK_USE_PLATFORM_WIN32_KHR
-#include <GLFW/glfw3.h>
-#include <vulkan/vulkan.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
-#elif defined(__APPLE__)
-#define VK_USE_PLATFORM_MACOS_MVK
-#include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_COCOA
-#include <GLFW/glfw3native.h>
-#else
-#include <GLFW/glfw3.h>
-#include <vulkan/vulkan.h>
-#if (DEFINED ENV{DISPLAY})
-#define GLFW_EXPOSE_NATIVE_X11
-#endif()
-#include <GLFW/glfw3native.h>
-#endif
-
+#include <ecs/asset_store.h>
+#include <render_list.h>
+#include <rendering/mesh_buffer.h>
+#include <rendering/texture_buffer.h>
+#include <utils/vk_descriptors.h>
+#include <utils/vk_types.h>
+#include <vertex.h>
 #include <vk_mem_alloc.h>
 
 #include <cstdlib>
+#include <filesystem>
 #include <functional>
+#include <glm/glm.hpp>
 #include <optional>
 #include <string>
 #include <vector>
-#include <filesystem>
 
-#include "utils/vk_descriptors.h"
-#include "utils/vk_types.h"
-#include "ecs/asset_store.h"
-#include "render_list.h"
-#include <glm/glm.hpp>
-#include "vertex.h"
-#include "rendering/texture_buffer.h"
-#include "rendering/mesh_buffer.h"
+struct GLFWwindow;
 
 extern const char* APP_NAME;
 extern const uint32_t WIDTH;

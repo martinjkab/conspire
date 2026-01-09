@@ -64,10 +64,10 @@ endif()
 
 target_include_directories(conspire PUBLIC
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/ecs
-    ${CMAKE_SOURCE_DIR}/rendering
-    ${CMAKE_SOURCE_DIR}/input
-    ${CMAKE_SOURCE_DIR}/core
+    ${CMAKE_SOURCE_DIR}/src/ecs
+    ${CMAKE_SOURCE_DIR}/src/rendering
+    ${CMAKE_SOURCE_DIR}/src/input
+    ${CMAKE_SOURCE_DIR}/src/core
     ${CMAKE_BINARY_DIR}/_deps/fetch_lodepng-src
 )
 

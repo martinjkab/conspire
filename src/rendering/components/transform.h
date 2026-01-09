@@ -1,8 +1,8 @@
 #pragma once
 
-#include <glm/vec3.hpp>
+#include <ecs/ecs.h>
 
-#include "ecs/ecs.h"
+#include <glm/vec3.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/io.hpp>
 

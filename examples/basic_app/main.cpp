@@ -1,23 +1,21 @@
 #include <GLFW/glfw3.h>
+#include <core/plugin.h>
+#include <ecs/app.h>
+#include <ecs/asset_store.h>
+#include <ecs/query.h>
+#include <input/input_state.h>
+#include <input/plugin.h>
+#include <rendering/components/mesh.h>
+#include <rendering/components/texture.h>
+#include <rendering/components/transform.h>
+#include <rendering/engine.h>
+#include <rendering/plugin.h>
+#include <rendering/render_list.h>
 
 #include <iostream>
-#include <thread>
 #include <memory>
+#include <thread>
 #include <vulkan/vulkan.hpp>
-
-#include "ecs/app.h"
-#include "ecs/query.h"
-#include "rendering/components/transform.h"
-#include "rendering/engine.h"
-#include "ecs/asset_store.h"
-#include "rendering/components/mesh.h"
-#include "rendering/render_list.h"
-#include "rendering/components/texture.h"
-#include "input/input_state.h"
-#include "ecs/app.h"
-#include "rendering/plugin.h"
-#include <input/plugin.h>
-#include <core/plugin.h>
 
 int main() {
   App{}

@@ -1,5 +1,5 @@
 #pragma once
 
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 
 void startup_system() {}

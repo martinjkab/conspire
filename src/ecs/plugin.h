@@ -1,6 +1,6 @@
 #pragma once
-#include "ecs/world.h"
-#include "ecs/app.h"
+#include <ecs/app.h>
+#include <ecs/world.h>
 
 class App;
 

@@ -1,11 +1,11 @@
 #pragma once
 
+#include <component.h>
+
 #include <memory>
 #include <tuple>
 #include <type_traits>
 #include <vector>
-
-#include "component.h"
 
 template <typename T>
 class Resource {

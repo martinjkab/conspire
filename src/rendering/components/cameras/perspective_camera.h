@@ -1,8 +1,8 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <rendering/components/cameras/camera.h>
 
-#include "camera.h"
+#include <glm/glm.hpp>
 
 class PerspectiveCamera : public ComponentBase, public Camera {
  public:

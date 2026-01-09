@@ -1,10 +1,10 @@
 #pragma once
 
-#include <type_traits>
+#include <ecs/event_store.h>
+#include <ecs/plugin.h>
+#include <world.h>
 
-#include "world.h"
-#include "ecs/plugin.h"
-#include "ecs/event_store.h"
+#include <type_traits>
 
 template <typename T>
 concept IsSystemParam =

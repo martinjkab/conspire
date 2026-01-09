@@ -1,5 +1,5 @@
 #pragma once
-#include "utils/vk_types.h"
+#include <utils/vk_types.h>
 
 struct TextureBuffer {
   AllocatedImage image;
