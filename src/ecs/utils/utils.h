@@ -1,6 +1,6 @@
 #pragma once
 
-#include <function_traits.h>
-#include <remove_smart_ptr.h>
-#include <type_map.h>
-#include <vec_to_tuple.h>
+#include <ecs/utils/function_traits.h>
+#include <ecs/utils/remove_smart_ptr.h>
+#include <ecs/utils/type_map.h>
+#include <ecs/utils/vec_to_tuple.h>

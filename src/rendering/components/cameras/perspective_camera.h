@@ -1,7 +1,9 @@
 #pragma once
 
+#include <ecs/component.h>
 #include <rendering/components/cameras/camera.h>
 
+#include <glm/ext/matrix_clip_space.hpp>
 #include <glm/glm.hpp>
 
 class PerspectiveCamera : public ComponentBase, public Camera {

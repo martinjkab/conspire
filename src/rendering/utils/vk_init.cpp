@@ -1,4 +1,4 @@
-#include <utils/vk_init.h>
+#include <rendering/utils/vk_init.h>
 
 VkFenceCreateInfo vkinit::fenceCreateInfo(VkFenceCreateFlags flags) {
   VkFenceCreateInfo info{};

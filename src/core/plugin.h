@@ -1,11 +1,11 @@
 #pragma once
 
+#include <core/platform.h>
+#include <core/window_handle.h>
 #include <ecs/plugin.h>
 #include <input/input_state.h>
 #include <input/mouse/mouse_motion.h>
-#include <platform.h>
 #include <rendering/components/cameras/perspective_camera.h>
-#include <window_handle.h>
 
 struct CorePlugin : public Plugin {
   void onAdd(App& app) const override {

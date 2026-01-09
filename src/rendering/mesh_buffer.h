@@ -1,5 +1,5 @@
 #pragma once
-#include <utils/vk_types.h>
+#include <rendering/utils/vk_types.h>
 
 struct MeshBuffer {
   AllocatedBuffer vertexBuffer;

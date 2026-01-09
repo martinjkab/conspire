@@ -1,6 +1,6 @@
 #include <fmt/base.h>
-#include <utils/vk_init.h>
-#include <utils/vk_pipelines.h>
+#include <rendering/utils/vk_init.h>
+#include <rendering/utils/vk_pipelines.h>
 
 #include <fstream>
 #include <vector>

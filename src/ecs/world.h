@@ -1,13 +1,13 @@
 #pragma once
 
-#include <component.h>
-#include <phase.h>
-#include <query.h>
-#include <resource.h>
-#include <utils/function_traits.h>
-#include <utils/remove_smart_ptr.h>
-#include <utils/type_map.h>
-#include <utils/vec_to_tuple.h>
+#include <ecs/component.h>
+#include <ecs/phase.h>
+#include <ecs/query.h>
+#include <ecs/resource.h>
+#include <ecs/utils/function_traits.h>
+#include <ecs/utils/remove_smart_ptr.h>
+#include <ecs/utils/type_map.h>
+#include <ecs/utils/vec_to_tuple.h>
 
 #include <functional>
 #include <iostream>

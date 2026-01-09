@@ -4,8 +4,8 @@
 #include <render_list.h>
 #include <rendering/mesh_buffer.h>
 #include <rendering/texture_buffer.h>
-#include <utils/vk_descriptors.h>
-#include <utils/vk_types.h>
+#include <rendering/utils/vk_descriptors.h>
+#include <rendering/utils/vk_types.h>
 #include <vertex.h>
 #include <vk_mem_alloc.h>
 

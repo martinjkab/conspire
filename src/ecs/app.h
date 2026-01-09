@@ -2,9 +2,11 @@
 
 #include <ecs/event_store.h>
 #include <ecs/plugin.h>
-#include <world.h>
+#include <ecs/world.h>
 
 #include <type_traits>
+
+struct Plugin;
 
 template <typename T>
 concept IsSystemParam =

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <component.h>
+#include <ecs/component.h>
 
 #include <memory>
 #include <tuple>

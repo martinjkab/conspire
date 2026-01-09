@@ -3,10 +3,10 @@
 #include <core/platform.h>
 #include <core/window_handle.h>
 #include <ecs/plugin.h>
+#include <input/input_context.h>
 #include <input/input_state.h>
+#include <input/mouse/cursor_position.h>
 #include <input/mouse/mouse_motion.h>
-#include <input_context.h>
-#include <mouse/cursor_position.h>
 #include <rendering/components/cameras/perspective_camera.h>
 
 struct InputPlugin : public Plugin {

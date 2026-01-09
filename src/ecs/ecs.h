@@ -1,3 +1,3 @@
-#include <component.h>
-#include <query.h>
-#include <world.h>
+#include <ecs/component.h>
+#include <ecs/query.h>
+#include <ecs/world.h>
