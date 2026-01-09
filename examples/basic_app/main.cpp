@@ -13,14 +13,18 @@
 #include "rendering/components/mesh.h"
 #include "rendering/render_list.h"
 #include "rendering/components/texture.h"
-#include "ecs/input_state.h"
+#include "input/input_state.h"
 #include "ecs/app.h"
 #include "rendering/plugin.h"
+#include <input/plugin.h>
+#include <core/plugin.h>
 
 int main() {
   App{}
       .addResource(AssetStore{})
+      .addPlugin(CorePlugin{})
       .addPlugin(RenderPlugin{})
+      .addPlugin(InputPlugin{})
       .addSystem(STARTUP,
                  [](Resource<RenderEngine> engine,
                     Resource<AssetStore> assetStore, World& world) {
@@ -80,6 +84,12 @@ int main() {
                      transform->model =
                          glm::rotate(transform->model, glm::radians(10.0f),
                                      glm::vec3(0.0f, 1.0f, 0.0f));
+                   }
+                 })
+      .addSystem(UPDATE,
+                 [](Resource<EventStore<MouseMotion>> mouseMotionStore) {
+                   for (auto event : *mouseMotionStore) {
+                     std::cout << "(" << event.delta << ")" << std::endl;
                    }
                  })
       .run();

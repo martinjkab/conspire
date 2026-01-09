@@ -9,6 +9,7 @@ void App::run() {
       auto begin = std::chrono::high_resolution_clock::now();
 
       runSystems(UPDATE);
+      runSystems(POST_UPDATE);
 
       auto end = std::chrono::high_resolution_clock::now();
       auto duration =

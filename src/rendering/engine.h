@@ -56,7 +56,7 @@ constexpr unsigned int FRAME_OVERLAP = 3;
 
 class RenderEngine {
  public:
-  void init();
+  void init(GLFWwindow* window);
   void mainLoop(const AssetStore& assetStore, const RenderList& renderList,
                 const glm::mat4& projection);
 
@@ -64,8 +64,6 @@ class RenderEngine {
                         std::vector<uint32_t> indices);
   MeshBuffer uploadGltf(const std::filesystem::path& path);
   TextureBuffer uploadTexture(const std::string& path);
-  void setKeyCallback(GLFWkeyfun callback);
-  GLFWwindow* getWindow();
 
  private:
   FrameData _frames[FRAME_OVERLAP];
@@ -109,7 +107,6 @@ class RenderEngine {
   VkCommandBuffer _immCommandBuffer;
   VkFence _immFence;
 
-  void initWindow();
   void initInstance();
   void initSwapchain();
   void initCommands();

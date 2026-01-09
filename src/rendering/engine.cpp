@@ -37,18 +37,9 @@ const char* APP_NAME = "Conspire";
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-void RenderEngine::init() {
-  initWindow();
+void RenderEngine::init(GLFWwindow* window) {
+  _window = window;
   initVulkan();
-}
-
-void RenderEngine::initWindow() {
-  glfwInit();
-
-  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-
-  _window = glfwCreateWindow(WIDTH, HEIGHT, APP_NAME, nullptr, nullptr);
 }
 
 void RenderEngine::initInstance() {
@@ -565,12 +556,6 @@ TextureBuffer RenderEngine::uploadTexture(const std::string& path) {
   });
   return {image};
 }
-
-void RenderEngine::setKeyCallback(GLFWkeyfun callback) {
-  glfwSetKeyCallback(_window, callback);
-}
-
-GLFWwindow* RenderEngine::getWindow() { return _window; }
 
 AllocatedBuffer RenderEngine::createBuffer(size_t allocSize,
                                            VkBufferUsageFlags usage,

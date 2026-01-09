@@ -4,6 +4,7 @@
 
 #include "world.h"
 #include "ecs/plugin.h"
+#include "ecs/event_store.h"
 
 template <typename T>
 concept IsSystemParam =
@@ -32,9 +33,10 @@ class App {
   }
 
   template <typename T>
-  App& addEvent(T&& event) {
+  App& addEvent() {
     _world.addResource(EventStore<T>());
-
+    addSystem(POST_UPDATE,
+              [](Resource<EventStore<T>> eventStore) { eventStore->update(); });
     return *this;
   }
 

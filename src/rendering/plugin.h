@@ -6,41 +6,26 @@
 #include "components/transform.h"
 #include "components/mesh.h"
 #include "components/texture.h"
-#include <ecs/input_state.h>
+#include <input/input_state.h>
+#include <input/mouse/mouse_motion.h>
+#include <core/window_handle.h>
 
 struct RenderPlugin : public Plugin {
   void onAdd(App& app) const override {
     app.addResource(RenderEngine{})
         .addResource(RenderList{})
-        .addResource(InputState{})
         .addSystem(STARTUP,
-                   [](Resource<RenderEngine> engine) { engine->init(); })
+                   [](Resource<RenderEngine> engine,
+                      Resource<WindowHandle> windowHandle) {
+                     engine->init(windowHandle->window);
+                   })
         .addSystem(STARTUP,
                    [](World& world) {
                      world.addEntity(Transform{glm::mat4(1.0f)},
                                      PerspectiveCamera{glm::radians(90.0f),
                                                        1.0f, 0.1f, 1000.0f});
                    })
-        .addSystem(
-            STARTUP,
-            [](Resource<RenderEngine> engine, Resource<InputState> state) {
-              glfwSetWindowUserPointer(engine->getWindow(), state.get());
 
-              engine->setKeyCallback([](GLFWwindow* window, int key,
-                                        int scancode, int action, int mods) {
-                auto* state =
-                    static_cast<InputState*>(glfwGetWindowUserPointer(window));
-                if (key < 0 || key >= 256) return;
-
-                if (action == GLFW_PRESS) {
-                  state->pressed.set(key);
-                  state->down.set(key);
-                } else if (action == GLFW_RELEASE) {
-                  state->released.set(key);
-                  state->down.reset(key);
-                }
-              });
-            })
         .addSystem(
             UPDATE,
             [](Query<Transform, Mesh, Texture> transformQuery,
