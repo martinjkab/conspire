@@ -27,19 +27,23 @@
 #include <GLFW/glfw3native.h>
 #endif
 #include "input_context.h"
+#include "mouse/cursor_position.h"
 
 struct InputPlugin : public Plugin {
   void onAdd(App& app) const override {
     app.addResource(InputContext{})
         .addResource(InputState{})
+        .addResource(CursorPosition{})
         .addEvent<MouseMotion>()
         .addSystem(
             STARTUP,
             [](Resource<WindowHandle> windowHandle, Resource<InputState> state,
                Resource<EventStore<MouseMotion>> mouseMotionEventStore,
+               Resource<CursorPosition> cursorPosition,
                Resource<InputContext> context) {
               context->inputState = state.get();
               context->mouseMotionEvents = mouseMotionEventStore.get();
+              context->cursorPosition = cursorPosition.get();
 
               glfwSetWindowUserPointer(windowHandle->window, context.get());
 
@@ -60,7 +64,6 @@ struct InputPlugin : public Plugin {
                                      state->down.reset(key);
                                    }
                                  });
-
               glfwSetCursorPosCallback(
                   windowHandle->window,
                   [](GLFWwindow* window, double x, double y) {
@@ -68,7 +71,12 @@ struct InputPlugin : public Plugin {
                         glfwGetWindowUserPointer(window));
                     auto* store = context->mouseMotionEvents;
 
-                    store->addEvent(MouseMotion(glm::vec2{x, y}));
+                    auto lastPos = context->cursorPosition->position;
+                    auto newPos = glm::vec2{x, y};
+
+                    store->addEvent(MouseMotion(newPos - lastPos));
+
+                    context->cursorPosition->position = newPos;
                   });
             });
   }
