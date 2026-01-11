@@ -60,7 +60,6 @@ class RenderEngine {
   VkDebugUtilsMessengerEXT _debugMessenger;
   VkPhysicalDevice _gpu = VK_NULL_HANDLE;
   VkDevice _device;
-  VkQueue _presentQueue;
   VkSurfaceKHR _surface;
   VkSwapchainKHR _swapchain;
   std::vector<VkImage> _swapchainImages;

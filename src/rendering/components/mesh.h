@@ -18,7 +18,7 @@ struct Mesh : ComponentBase {
     return os;
   }
 
-  AssetHandle<MeshBuffer> getHandle() { return handle; }
+  AssetHandle<MeshBuffer> getHandle() const { return handle; }
 
  private:
   AssetHandle<MeshBuffer> handle;
