@@ -1,19 +1,20 @@
 #pragma once
 
 #include <components/mesh.h>
-#include <components/texture.h>
 #include <components/transform.h>
 #include <core/window_handle.h>
 #include <ecs/plugin.h>
 #include <input/input_state.h>
 #include <input/mouse/mouse_motion.h>
 #include <rendering/components/cameras/perspective_camera.h>
+#include <rendering/components/mesh_material.h>
 #include <rendering/engine.h>
+#include <rendering/materials/standard_material.h>
 
 struct RenderPlugin : public Plugin {
   void onAdd(App& app) const override {
     app.addResource(RenderEngine{})
-        .addResource(RenderList{})
+        .addResource(RenderList<StandardMaterial>{})
         .addSystem(STARTUP,
                    [](Resource<RenderEngine> engine,
                       Resource<WindowHandle> windowHandle) {
@@ -28,8 +29,8 @@ struct RenderPlugin : public Plugin {
 
         .addSystem(
             UPDATE,
-            [](Query<Transform, Mesh, Texture> transformQuery,
-               Resource<RenderList> renderList) {
+            [](Query<Transform, Mesh, MeshMaterial> transformQuery,
+               Resource<RenderList<StandardMaterial>> renderList) {
               renderList->items.clear();
               for (auto transformTuple : transformQuery) {
                 const auto [transform, mesh, texture] = transformTuple;

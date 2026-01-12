@@ -6,7 +6,6 @@
 #include <input/input_state.h>
 #include <input/plugin.h>
 #include <rendering/components/mesh.h>
-#include <rendering/components/texture.h>
 #include <rendering/components/transform.h>
 #include <rendering/engine.h>
 #include <rendering/plugin.h>
@@ -28,22 +27,23 @@ int main() {
                    glfwSetInputMode(windowHandle->window, GLFW_CURSOR,
                                     GLFW_CURSOR_DISABLED);
                  })
-      .addSystem(STARTUP,
-                 [](Resource<RenderEngine> engine,
-                    Resource<AssetStore> assetStore, World& world) {
-                   auto meshHandle =
-                       engine->uploadGltf("assets/models/rat.glb");
+      .addSystem(
+          STARTUP,
+          [](Resource<RenderEngine> engine, Resource<AssetStore> assetStore,
+             World& world) {
+            auto meshHandle = engine->uploadGltf("assets/models/rat.glb");
 
-                   auto textureHandle =
-                       engine->uploadTexture("assets/sprites/rat_albedo.png");
+            auto textureHandle =
+                engine->uploadTexture("assets/sprites/rat_albedo.png");
 
-                   auto mesh = Mesh{assetStore->add(meshHandle)};
-                   auto texture = Texture{assetStore->add(textureHandle)};
+            auto mesh = Mesh{assetStore->add(meshHandle)};
+            auto texture =
+                MeshMaterial{StandardMaterial{assetStore->add(textureHandle)}};
 
-                   world.addEntity(Transform{glm::translate(
-                                       glm::mat4{1.0}, glm::vec3{0, 0, -75.0})},
-                                   mesh, texture);
-                 })
+            world.addEntity(Transform{glm::translate(glm::mat4{1.0},
+                                                     glm::vec3{0, 0, -75.0})},
+                            mesh, texture);
+          })
       .addSystem(
           UPDATE,
           [](Query<Transform, PerspectiveCamera> transformQuery,
