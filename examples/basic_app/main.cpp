@@ -37,8 +37,8 @@ int main() {
                 engine->uploadTexture("assets/sprites/rat_albedo.png");
 
             auto mesh = Mesh{assetStore->add(meshHandle)};
-            auto texture =
-                MeshMaterial{StandardMaterial{assetStore->add(textureHandle)}};
+            auto texture = MeshMaterial<StandardMaterial>{assetStore->add(
+                StandardMaterial{assetStore->add(textureHandle)})};
 
             world.addEntity(Transform{glm::translate(glm::mat4{1.0},
                                                      glm::vec3{0, 0, -75.0})},

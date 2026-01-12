@@ -26,22 +26,22 @@ struct RenderPlugin : public Plugin {
                                      PerspectiveCamera{glm::radians(90.0f),
                                                        1.0f, 0.1f, 1000.0f});
                    })
-
         .addSystem(
             UPDATE,
-            [](Query<Transform, Mesh, MeshMaterial> transformQuery,
+            [](Query<Transform, Mesh, MeshMaterial<StandardMaterial>>
+                   transformQuery,
                Resource<RenderList<StandardMaterial>> renderList) {
               renderList->items.clear();
               for (auto transformTuple : transformQuery) {
-                const auto [transform, mesh, texture] = transformTuple;
+                const auto [transform, mesh, material] = transformTuple;
                 renderList->items.push_back(RenderListItem{
-                    mesh->getHandle(), texture->getHandle(), transform->model});
+                    mesh->getHandle(), material->material, transform->model});
               }
             })
         .addSystem(
             UPDATE,
-            [](Resource<RenderList> renderList, Resource<AssetStore> assetStore,
-               Resource<RenderEngine> engine,
+            [](Resource<RenderList<StandardMaterial>> renderList,
+               Resource<AssetStore> assetStore, Resource<RenderEngine> engine,
                Query<Transform, PerspectiveCamera> cameraQuery) {
               const auto [transform, camera] = *(cameraQuery.begin());
               engine->mainLoop(

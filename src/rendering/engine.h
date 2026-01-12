@@ -271,14 +271,8 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
     auto imageSetLayouts = std::vector{_perObjectDescriptorLayout};
     std::vector<VkDescriptorSet> imageSet =
         getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
-    auto textureData = assetStore[item.textureHandle];
-    {
-      DescriptorWriter writer;
-      writer.writeImage(0, textureData.image.imageView, _defaultSamplerNearest,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-      writer.updateSet(_device, imageSet.at(0));
-    }
+    assetStore[item.material].uploadUniforms(
+        {assetStore, _device, _defaultSamplerNearest});
     {
       DescriptorWriter writer;
       AllocatedBuffer uploadbuffer =
@@ -296,7 +290,7 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
                             _trianglePipelineLayout, 1, imageSet.size(),
                             imageSet.data(), 0, nullptr);
 
-    auto bufferData = assetStore[item.meshHandle];
+    auto bufferData = assetStore[item.mesh];
     vkCmdPushConstants(cmd, _trianglePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
                        0, sizeof(VkDeviceAddress),
                        &(bufferData.vertexBufferAddress));

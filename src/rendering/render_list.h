@@ -10,8 +10,8 @@
 
 template <Material M>
 struct RenderListItem {
-  AssetHandle<MeshBuffer> meshHandle;
-  AssetHandle<M> materialHandle;
+  AssetHandle<MeshBuffer> mesh;
+  AssetHandle<M> material;
   glm::mat4 model;
 };
 

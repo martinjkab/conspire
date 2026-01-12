@@ -7,4 +7,6 @@
 template <Material M>
 struct MeshMaterial : ComponentBase {
   AssetHandle<M> material;
+
+  MeshMaterial(AssetHandle<M> handle) : material(handle) {}
 };
