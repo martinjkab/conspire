@@ -31,14 +31,11 @@ int main() {
           STARTUP,
           [](Resource<RenderEngine> engine, Resource<AssetStore> assetStore,
              World& world) {
-            auto meshHandle = engine->uploadGltf("assets/models/rat.glb");
-
-            auto textureHandle =
-                engine->uploadTexture("assets/sprites/rat_albedo.png");
-
-            auto mesh = Mesh{assetStore->add(meshHandle)};
-            auto texture = MeshMaterial<StandardMaterial>{assetStore->add(
-                StandardMaterial{assetStore->add(textureHandle)})};
+            auto mesh =
+                Mesh{assetStore->load<MeshBuffer>("assets/models/rat.glb")};
+            auto texture = MeshMaterial<StandardMaterial>{
+                assetStore->add(StandardMaterial{assetStore->load<Texture>(
+                    "assets/sprites/rat_albedo.png")})};
 
             world.addEntity(Transform{glm::translate(glm::mat4{1.0},
                                                      glm::vec3{0, 0, -75.0})},

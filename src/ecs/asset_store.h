@@ -1,21 +1,29 @@
 #pragma once
 
-#include <memory>
-#include <unordered_map>
+#include <ecs/asset_handle.h>
+#include <ecs/asset_loader.h>
 
-template <typename T>
-struct AssetHandle {
-  uint64_t id;
-};
+#include <any>
+#include <memory>
+#include <typeindex>
+#include <unordered_map>
 
 class AssetStore {
  public:
   AssetStore() {};
 
   template <typename T>
-  AssetHandle<T> add(T buffer) {
+  AssetHandle<T> load(const std::string& path) {
+    auto loader = std::any_cast<AssetLoader<T>>(loaders[typeid(T)]);
+    T data = loader.load(path);
+
+    return add(data);
+  }
+
+  template <typename T>
+  AssetHandle<T> add(T data) {
     counter<T> += 1;
-    storage<T>[counter<T>] = buffer;
+    storage<T>[counter<T>] = data;
     return AssetHandle<T>{counter<T>};
   }
 
@@ -25,6 +33,8 @@ class AssetStore {
   }
 
  private:
+  std::unordered_map<std::type_index, std::any> loaders;
+
   template <typename T>
   static std::unordered_map<uint64_t, T> storage;
 

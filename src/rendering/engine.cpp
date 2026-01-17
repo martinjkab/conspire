@@ -18,10 +18,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <fastgltf/core.hpp>
-#include <fastgltf/glm_element_traits.hpp>
-#include <fastgltf/tools.hpp>
-#include <fastgltf/types.hpp>
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -592,5 +588,5 @@ void RenderEngine::immediateSubmit(
 
   VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
 
-  VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
+  VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, UINT64_MAX));
 }

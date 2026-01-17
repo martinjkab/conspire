@@ -1,11 +1,15 @@
 #pragma once
 
 #include <rendering/materials/material_context.h>
+#include <rendering/utils/vk_descriptors.h>
 
 #include <concepts>
 #include <type_traits>
 
 template <typename T>
-concept Material = requires(const T& m, const MaterialContext& context) {
-  { m.uploadUniforms(context) } -> std::same_as<void>;
+concept Material = requires(
+    T& m, const T& const_m, const MaterialContext& context, VkDevice device,
+    VkDescriptorSetLayout layout, DescriptorAllocator& allocator) {
+  { m.init(device, layout, allocator) } -> std::same_as<void>;
+  { const_m.uploadUniforms(context) } -> std::same_as<void>;
 };
