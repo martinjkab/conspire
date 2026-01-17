@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ecs/asset_handle.h>
+#include <ecs/asset_traits.h>
 
 #include <concepts>
 #include <memory>
@@ -11,5 +12,5 @@
 template <typename T>
 class AssetLoader {
  public:
-  T load(const std::string& path);
+  typename AssetTraits<T>::CPUDataType load(const std::string& path) const;
 };

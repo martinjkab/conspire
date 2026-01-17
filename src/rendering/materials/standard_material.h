@@ -14,7 +14,7 @@ struct StandardMaterial {
   }
 
   void uploadUniforms(const MaterialContext& context) const {
-    auto textureData = context.assetStore[texture];
+    auto textureData = context.assetStore[texture].value();
     {
       DescriptorWriter writer;
       writer.writeImage(0, textureData.image.imageView,

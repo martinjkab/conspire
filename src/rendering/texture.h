@@ -4,3 +4,8 @@
 struct Texture {
   AllocatedImage image;
 };
+
+template <>
+struct AssetTraits<Texture> {
+  using CPUDataType = std::tuple<std::vector<uint8_t>, unsigned, unsigned>;
+};

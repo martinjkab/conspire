@@ -271,7 +271,7 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
     auto imageSetLayouts = std::vector{_perObjectDescriptorLayout};
     std::vector<VkDescriptorSet> imageSet =
         getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
-    assetStore[item.material].uploadUniforms(
+    assetStore[item.material].value().uploadUniforms(
         {assetStore, _device, _defaultSamplerNearest});
     {
       DescriptorWriter writer;
@@ -290,7 +290,7 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
                             _trianglePipelineLayout, 1, imageSet.size(),
                             imageSet.data(), 0, nullptr);
 
-    auto bufferData = assetStore[item.mesh];
+    auto bufferData = assetStore[item.mesh].value();
     vkCmdPushConstants(cmd, _trianglePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
                        0, sizeof(VkDeviceAddress),
                        &(bufferData.vertexBufferAddress));

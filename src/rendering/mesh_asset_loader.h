@@ -11,7 +11,8 @@
 #include <filesystem>
 
 template <>
-MeshBuffer AssetLoader<MeshBuffer>::load(const std::string& path) {
+AssetTraits<MeshBuffer>::CPUData AssetLoader<MeshBuffer>::load(
+    const std::string& path) const {
   fastgltf::Parser parser;
   auto data = fastgltf::GltfDataBuffer::FromPath(path);
 

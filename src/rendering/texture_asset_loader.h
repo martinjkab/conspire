@@ -12,12 +12,14 @@
 #include <filesystem>
 #include <ostream>
 
+#include "texture.h"
 #include "vk_images.h"
 #include "vk_init.h"
 #include "vk_utils.h"
 
 template <>
-MeshBuffer AssetLoader<MeshBuffer>::load(const std::string& path) {
+AssetTraits<Texture>::CPUData AssetLoader<Texture>::load(
+    const std::string& path) const {
   auto [data, width, height] = loadSprite(path);
 
   return {image};

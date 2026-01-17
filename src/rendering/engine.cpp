@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fastgltf/core.hpp>
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -268,50 +269,6 @@ MeshBuffer RenderEngine::uploadMesh(std::vector<Vertex> vertices,
   vkDestroyBuffer(_device, staging.buffer, nullptr);
 
   return buffer;
-}
-
-MeshBuffer RenderEngine::uploadGltf(const std::filesystem::path& path) {
-  fastgltf::Parser parser;
-  auto data = fastgltf::GltfDataBuffer::FromPath(path);
-
-  if (data.error() != fastgltf::Error::None) {
-    throw data.error();
-  }
-
-  auto assetResult =
-      parser.loadGltfBinary(data.get(), path.parent_path(),
-                            fastgltf::Options::LoadGLBBuffers |
-                                fastgltf::Options::LoadExternalBuffers);
-  if (assetResult.error() != fastgltf::Error::None) {
-    throw assetResult.error();
-  }
-  const auto& asset = assetResult.get();
-
-  const auto& primitive = asset.meshes.at(0).primitives.at(0);
-
-  auto& posAccessor =
-      asset.accessors[primitive.findAttribute("POSITION")->accessorIndex];
-  auto& uvAccessor =
-      asset.accessors[primitive.findAttribute("TEXCOORD_0")->accessorIndex];
-  auto& indexAccessor = asset.accessors[primitive.indicesAccessor.value()];
-
-  std::vector<Vertex> vertices(posAccessor.count);
-  std::vector<uint32_t> indices(indexAccessor.count);
-
-  fastgltf::iterateAccessorWithIndex<std::uint32_t>(
-      asset, indexAccessor,
-      [&](std::uint32_t index, size_t idx) { indices[idx] = index; });
-
-  fastgltf::iterateAccessorWithIndex<glm::vec3>(
-      asset, posAccessor, [&](glm::vec3 p, size_t idx) {
-        vertices[idx].position = glm::vec4{p, 1.};
-      });
-
-  fastgltf::iterateAccessorWithIndex<glm::vec2>(
-      asset, uvAccessor,
-      [&](glm::vec2 uv, size_t idx) { vertices[idx].tex = uv; });
-
-  return uploadMesh(vertices, indices);
 }
 
 Texture RenderEngine::uploadTexture(const std::string& path) {
