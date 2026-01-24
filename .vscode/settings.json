@@ -87,8 +87,9 @@
   },
   "C_Cpp.clang_format_sortIncludes": true,
   "C_Cpp.formatting": "clangFormat",
-  "C_Cpp.clang_format_fallbackStyle": "Google",
+  "C_Cpp.clang_format_fallbackStyle": "LLVM",
   "C_Cpp.codeAnalysis.clangTidy.enabled": true,
   "C_Cpp.codeAnalysis.clangTidy.path": "clang-tidy",
+  "C_Cpp.clang_format_style": "file",
   "C_Cpp.codeAnalysis.clangTidy.config": "${workspaceFolder}/.clang-tidy"
 }
