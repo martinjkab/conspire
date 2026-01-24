@@ -51,9 +51,20 @@ FetchContent_MakeAvailable(fastgltf)
 
 # Create lodepng library target
 add_library(lodepng STATIC ${fetch_lodepng_SOURCE_DIR}/lodepng.cpp)
-target_include_directories(lodepng PUBLIC ${fetch_lodepng_SOURCE_DIR})
+
+target_include_directories(lodepng SYSTEM PUBLIC ${fetch_lodepng_SOURCE_DIR})
 
 target_link_libraries(conspire PUBLIC Vulkan::Vulkan glfw glm::glm vk-bootstrap::vk-bootstrap GPUOpen::VulkanMemoryAllocator fmt::fmt lodepng fastgltf::fastgltf)
+
+# Suppress warnings from external libraries by marking their include directories as SYSTEM
+foreach(lib GPUOpen::VulkanMemoryAllocator vk-bootstrap::vk-bootstrap fmt::fmt fastgltf::fastgltf glm::glm glfw)
+    if(TARGET ${lib})
+        get_target_property(lib_includes ${lib} INTERFACE_INCLUDE_DIRECTORIES)
+        if(lib_includes)
+            target_include_directories(conspire SYSTEM PRIVATE ${lib_includes})
+        endif()
+    endif()
+endforeach()
 
 # Cross-platform settings
 if(MSVC)

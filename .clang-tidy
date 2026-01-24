@@ -2,3 +2,4 @@ Checks: "*,llvm-include-order,google-build-using-namespace,llvm-header-guard,goo
 WarningsAsErrors: ""
 HeaderFilterRegex: ""
 FormatStyle: none
+PointerAlignment: Left
