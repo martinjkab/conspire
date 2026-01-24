@@ -1,3 +1,5 @@
+#pragma once
+
 #include <ecs/asset_loader.h>
 #include <ecs/asset_store.h>
 #include <rendering/mesh_buffer.h>
@@ -11,8 +13,8 @@
 #include <filesystem>
 
 template <>
-AssetTraits<MeshBuffer>::CPUData AssetLoader<MeshBuffer>::load(
-    const std::string& path) const {
+AssetTraits<MeshBuffer>::CPUDataType
+AssetLoader<MeshBuffer>::loadCPU(const std::string& path) const {
   fastgltf::Parser parser;
   auto data = fastgltf::GltfDataBuffer::FromPath(path);
 
@@ -20,10 +22,9 @@ AssetTraits<MeshBuffer>::CPUData AssetLoader<MeshBuffer>::load(
     throw data.error();
   }
 
-  auto assetResult =
-      parser.loadGltfBinary(data.get(), path.parent_path(),
-                            fastgltf::Options::LoadGLBBuffers |
-                                fastgltf::Options::LoadExternalBuffers);
+  auto assetResult = parser.loadGltfBinary(
+      data.get(), std::filesystem::path(path).parent_path(),
+      fastgltf::Options::LoadExternalBuffers);
   if (assetResult.error() != fastgltf::Error::None) {
     throw assetResult.error();
   }
@@ -53,5 +54,5 @@ AssetTraits<MeshBuffer>::CPUData AssetLoader<MeshBuffer>::load(
       asset, uvAccessor,
       [&](glm::vec2 uv, size_t idx) { vertices[idx].tex = uv; });
 
-  return uploadMesh(vertices, indices);
+  return {vertices, indices};
 }

@@ -15,7 +15,7 @@ struct MeshData {
   std::vector<uint32_t> indices;
 };
 
-template <>
-struct AssetTraits<MeshBuffer> {
+template <> struct AssetTraits<MeshBuffer> {
   using CPUDataType = MeshData;
+  static constexpr bool IsGpuAsset = true;
 };

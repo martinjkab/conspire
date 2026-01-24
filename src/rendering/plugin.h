@@ -1,5 +1,6 @@
 #pragma once
 
+#include "texture.h"
 #include <components/mesh.h>
 #include <components/transform.h>
 #include <core/window_handle.h>
@@ -15,6 +16,12 @@ struct RenderPlugin : public Plugin {
   void onAdd(App& app) const override {
     app.addResource(RenderEngine{})
         .addResource(RenderList<StandardMaterial>{})
+        .addSystem(
+            STARTUP,
+            [](Resource<AssetStore> store) { store->add_type<MeshBuffer>(); })
+        .addSystem(
+            STARTUP,
+            [](Resource<AssetStore> store) { store->add_type<Texture>(); })
         .addSystem(STARTUP,
                    [](Resource<RenderEngine> engine,
                       Resource<WindowHandle> windowHandle) {
@@ -28,26 +35,29 @@ struct RenderPlugin : public Plugin {
                    })
         .addSystem(
             UPDATE,
-            [](Query<Transform, Mesh, MeshMaterial<StandardMaterial>>
-                   transformQuery,
-               Resource<RenderList<StandardMaterial>> renderList) {
-              renderList->items.clear();
-              for (auto transformTuple : transformQuery) {
-                const auto [transform, mesh, material] = transformTuple;
-                renderList->items.push_back(RenderListItem{
-                    mesh->getHandle(), material->material, transform->model});
-              }
-            })
-        .addSystem(
-            UPDATE,
-            [](Resource<RenderList<StandardMaterial>> renderList,
-               Resource<AssetStore> assetStore, Resource<RenderEngine> engine,
-               Query<Transform, PerspectiveCamera> cameraQuery) {
-              const auto [transform, camera] = *(cameraQuery.begin());
-              engine->mainLoop(
-                  *assetStore, *renderList,
-                  camera->projection() * glm::inverse(transform->model));
-            })
+            [](Resource<AssetStore> store) { store->loadStaged<Texture>(); })
+        .addSystem(UPDATE,
+                   [](Query<Transform, Mesh, MeshMaterial<StandardMaterial>>
+                          transformQuery,
+                      Resource<RenderList<StandardMaterial>> renderList) {
+                     renderList->items.clear();
+                     for (auto transformTuple : transformQuery) {
+                       const auto [transform, mesh, material] = transformTuple;
+                       renderList->items.push_back(
+                           RenderListItem{mesh->getHandle(), material->material,
+                                          transform->model});
+                     }
+                   })
+        .addSystem(UPDATE,
+                   [](Resource<RenderList<StandardMaterial>> renderList,
+                      Resource<AssetStore> assetStore,
+                      Resource<RenderEngine> engine,
+                      Query<Transform, PerspectiveCamera> cameraQuery) {
+                     const auto [transform, camera] = *(cameraQuery.begin());
+                     engine->mainLoop(*assetStore, *renderList,
+                                      camera->projection() *
+                                          glm::inverse(transform->model));
+                   })
         .addSystem(UPDATE, [](Resource<InputState> inputState) {
           inputState->pressed.reset();
           inputState->released.reset();

@@ -17,7 +17,15 @@
 #include <rendering/utils/vk_types.h>
 #include <rendering/utils/vk_utils.h>
 #include <vertex.h>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-extension"
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wunused-variable"
 #include <vk_mem_alloc.h>
+#pragma clang diagnostic pop
 
 #include <cstdlib>
 #include <filesystem>
@@ -45,7 +53,7 @@ struct FrameData {
 constexpr unsigned int FRAME_OVERLAP = 3;
 
 class RenderEngine {
- public:
+public:
   void init(GLFWwindow* window);
   template <Material M>
   void mainLoop(const AssetStore& assetStore, const RenderList<M>& renderList,
@@ -54,9 +62,8 @@ class RenderEngine {
   MeshBuffer uploadMesh(std::vector<Vertex> vertices,
                         std::vector<uint32_t> indices);
   MeshBuffer uploadGltf(const std::filesystem::path& path);
-  Texture uploadTexture(const std::string& path);
 
- private:
+private:
   FrameData _frames[FRAME_OVERLAP];
   int _frameNumber = 0;
 
@@ -112,8 +119,6 @@ class RenderEngine {
   void initDescriptors();
   void initPipelines();
   void initTrianglePipeline();
-  std::tuple<std::vector<uint8_t>, unsigned, unsigned> loadSprite(
-      std::string path);
   void cleanup();
   void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
   VkDeviceAddress getBufferDeviceAddress(VkBufferDeviceAddressInfo& info);

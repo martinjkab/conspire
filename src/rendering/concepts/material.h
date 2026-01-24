@@ -3,8 +3,6 @@
 #include <rendering/materials/material_context.h>
 #include <rendering/utils/vk_descriptors.h>
 
-#include <concepts>
-#include <type_traits>
 
 template <typename T>
 concept Material = requires(

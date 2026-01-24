@@ -1,4 +1,10 @@
 {
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/build",
+    "--background-index",
+    "--completion-style=detailed",
+    "--header-insertion=iwyu"
+  ],
   "files.associations": {
     "*.yarnproject": "jsonc",
     "atomic": "cpp",
@@ -89,7 +95,9 @@
   "C_Cpp.formatting": "clangFormat",
   "C_Cpp.clang_format_fallbackStyle": "LLVM",
   "C_Cpp.codeAnalysis.clangTidy.enabled": true,
+  "C_Cpp.vcFormat.space.pointerReferenceAlignment": "left",
   "C_Cpp.codeAnalysis.clangTidy.path": "clang-tidy",
   "C_Cpp.clang_format_style": "file",
-  "C_Cpp.codeAnalysis.clangTidy.config": "${workspaceFolder}/.clang-tidy"
+  "C_Cpp.codeAnalysis.clangTidy.config": "${workspaceFolder}/.clang-tidy",
+  "C_Cpp.errorSquiggles": "enabled",
 }

@@ -7,23 +7,22 @@
 #include <type_traits>
 #include <vector>
 
-template <typename T>
-class Resource {
- public:
+template <typename T> class Resource {
+public:
   using Type = T;
 
-  Resource(std::shared_ptr<T> value) : value{value} {};
+  Resource(T* value) : value{value} {};
 
   T& operator*() { return *value; }
 
   const T& operator*() const { return *value; }
 
-  T* operator->() { return value.get(); }
+  T* operator->() { return value; }
 
-  T* get() { return value.get(); }
+  T* get() { return value; }
 
- private:
-  std::shared_ptr<T> value;
+private:
+  T* value;
 };
 
 template <typename T>

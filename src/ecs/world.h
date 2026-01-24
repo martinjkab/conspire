@@ -9,6 +9,7 @@
 #include <ecs/utils/type_map.h>
 #include <ecs/utils/vec_to_tuple.h>
 
+#include <any>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -20,12 +21,11 @@
 #include <vector>
 
 class World {
- public:
+public:
   World() = default;
   ~World() = default;
 
-  template <typename... Args>
-  void addEntity(Args... args) {
+  template <typename... Args> void addEntity(Args... args) {
     static_assert(std::conjunction_v<std::is_base_of<ComponentBase, Args>...>,
                   "All arguments must be Component");
     auto entity_id = entityCounter++;
@@ -42,11 +42,9 @@ class World {
         std::forward_as_tuple(args...));
   }
 
-  template <typename T>
-  void addResource(T&& resource) {
+  template <typename T> void addResource(T&& resource) {
     using DecayedT = typename std::decay<T>::type;
-    resources[typeid(DecayedT)] =
-        std::make_shared<DecayedT>(std::forward<T>(resource));
+    resources[typeid(DecayedT)] = new DecayedT{std::forward<T>(resource)};
   }
 
   template <typename T>
@@ -56,13 +54,15 @@ class World {
 
     if (first) {
       intersection.reserve(entityMap.size());
-      for (const auto& p : entityMap) intersection.push_back(p.first);
+      for (const auto& p : entityMap)
+        intersection.push_back(p.first);
       first = false;
     } else {
       std::vector<int> next;
       next.reserve(std::min(intersection.size(), entityMap.size()));
       for (int id : intersection) {
-        if (entityMap.find(id) != entityMap.end()) next.push_back(id);
+        if (entityMap.find(id) != entityMap.end())
+          next.push_back(id);
       }
       intersection.swap(next);
     }
@@ -76,8 +76,7 @@ class World {
     return std::static_pointer_cast<Comp>(component);
   }
 
-  template <typename Query>
-  Query getQuery() {
+  template <typename Query> Query getQuery() {
     using ComponentTuple = typename Query::Types;
     bool first = true;
     std::vector<int> intersection;
@@ -99,17 +98,17 @@ class World {
     return Query{results};
   }
 
-  template <typename Resource>
-  Resource getResource() {
+  template <typename Resource> Resource getResource() {
     using ResourceType = typename Resource::Type;
-    return static_pointer_cast<ResourceType>(resources[typeid(ResourceType)]);
+    return Resource{
+        std::any_cast<ResourceType*>(resources[typeid(ResourceType)])};
   }
 
- private:
+private:
   int entityCounter = 0;
   TypeMap<ComponentBase, std::vector<std::shared_ptr<ComponentBase>>>
       components;
   TypeMap<ComponentBase, std::unordered_map<int, size_t>>
       entityToComponentIndex;
-  std::unordered_map<std::type_index, std::shared_ptr<void>> resources;
+  std::unordered_map<std::type_index, std::any> resources;
 };

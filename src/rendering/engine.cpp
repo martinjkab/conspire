@@ -12,21 +12,22 @@
 #include <rendering/utils/vk_init.h>
 #include <rendering/utils/vk_pipelines.h>
 #include <rendering/utils/vk_utils.h>
-#include <vk_mem_alloc.h>
 
-#include <algorithm>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-extension"
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#include <vk_mem_alloc.h>
+#pragma clang diagnostic pop
+
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fastgltf/core.hpp>
-#include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <iostream>
-#include <limits>
-#include <optional>
-#include <set>
-#include <stdexcept>
 #include <vector>
 
 const char* APP_NAME = "Conspire";
@@ -234,10 +235,10 @@ MeshBuffer RenderEngine::uploadMesh(std::vector<Vertex> vertices,
       .buffer = buffer.vertexBuffer.buffer};
   buffer.vertexBufferAddress = getBufferDeviceAddress(deviceAddressInfo);
 
-  buffer.indexBuffer = createBuffer(
-      indexBufferSize,
-      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      VMA_MEMORY_USAGE_GPU_ONLY);
+  buffer.indexBuffer = createBuffer(indexBufferSize,
+                                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                    VMA_MEMORY_USAGE_GPU_ONLY);
 
   AllocatedBuffer staging =
       createBuffer(vertexBufferSize + indexBufferSize,
@@ -271,91 +272,8 @@ MeshBuffer RenderEngine::uploadMesh(std::vector<Vertex> vertices,
   return buffer;
 }
 
-Texture RenderEngine::uploadTexture(const std::string& path) {
-  auto [data, width, height] = loadSprite(path);
-  AllocatedBuffer uploadbuffer =
-      createBuffer(data.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                   VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-  memcpy(uploadbuffer.info.pMappedData, data.data(), data.size());
-
-  AllocatedImage image;
-
-  image.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-  image.imageExtent = VkExtent3D{.width = width, .height = height, .depth = 1};
-
-  VkImageCreateInfo info = vkinit::imageCreateInfo(
-      image.imageFormat,
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      image.imageExtent);
-
-  VmaAllocationCreateInfo allocinfo = {};
-  allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-  allocinfo.requiredFlags =
-      VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-  VK_CHECK(vmaCreateImage(_allocator, &info, &allocinfo, &image.image,
-                          &image.allocation, nullptr));
-
-  VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
-
-  VkImageViewCreateInfo view_info =
-      vkinit::imageviewCreateInfo(image.imageFormat, image.image, aspectFlag);
-
-  VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &image.imageView));
-
-  immediateSubmit([&](VkCommandBuffer cmd) {
-    vkutil::transitionImage(cmd, image.image, VK_IMAGE_LAYOUT_UNDEFINED,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    VkBufferImageCopy copyRegion = {};
-    copyRegion.bufferOffset = 0;
-    copyRegion.bufferRowLength = 0;
-    copyRegion.bufferImageHeight = 0;
-
-    copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    copyRegion.imageSubresource.mipLevel = 0;
-    copyRegion.imageSubresource.baseArrayLayer = 0;
-    copyRegion.imageSubresource.layerCount = 1;
-    copyRegion.imageExtent = image.imageExtent;
-
-    // copy the buffer into the image
-    vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, image.image,
-                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-                           &copyRegion);
-
-    vkutil::transitionImage(cmd, image.image,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-  });
-  return {image};
-}
-
-AllocatedBuffer RenderEngine::createBuffer(size_t allocSize,
-                                           VkBufferUsageFlags usage,
-                                           VmaMemoryUsage memoryUsage) {
-  VkBufferCreateInfo bufferInfo = {.sType =
-                                       VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  bufferInfo.pNext = nullptr;
-  bufferInfo.size = allocSize;
-
-  bufferInfo.usage = usage;
-
-  VmaAllocationCreateInfo vmaallocInfo = {};
-  vmaallocInfo.usage = memoryUsage;
-  vmaallocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-  AllocatedBuffer newBuffer;
-
-  // allocate the buffer
-  VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo,
-                           &newBuffer.buffer, &newBuffer.allocation,
-                           &newBuffer.info));
-
-  return newBuffer;
-}
-
-VkDeviceAddress RenderEngine::getBufferDeviceAddress(
-    VkBufferDeviceAddressInfo& info) {
+VkDeviceAddress
+RenderEngine::getBufferDeviceAddress(VkBufferDeviceAddressInfo& info) {
   return vkGetBufferDeviceAddress(_device, &info);
 }
 
@@ -484,24 +402,6 @@ void RenderEngine::initTrianglePipeline() {
   vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
 }
 
-std::tuple<std::vector<uint8_t>, unsigned, unsigned> RenderEngine::loadSprite(
-    std::string path) {
-  std::vector<uint8_t> image;
-  unsigned width, height;
-
-  unsigned error = lodepng::decode(image, width, height, path);
-
-  if (error) {
-    fmt::print("Error loading sprite {}: {}\n", path,
-               lodepng_error_text(error));
-    return {};
-  }
-
-  fmt::print("Successfully loaded sprite: {} ({}x{}, RGBA)\n", path, width,
-             height);
-  return {image, width, height};
-}
-
 void RenderEngine::cleanup() {
   for (auto framebuffer : _swapchainFramebuffers) {
     vkDestroyFramebuffer(_device, framebuffer, nullptr);
@@ -522,28 +422,4 @@ void RenderEngine::cleanup() {
   glfwDestroyWindow(_window);
 
   glfwTerminate();
-}
-
-void RenderEngine::immediateSubmit(
-    std::function<void(VkCommandBuffer cmd)>&& function) {
-  VK_CHECK(vkResetFences(_device, 1, &_immFence));
-  VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
-
-  VkCommandBuffer cmd = _immCommandBuffer;
-
-  VkCommandBufferBeginInfo cmdBeginInfo = vkinit::commandBufferBeginInfo(
-      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-  VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
-  function(cmd);
-
-  VK_CHECK(vkEndCommandBuffer(cmd));
-
-  VkCommandBufferSubmitInfo cmdinfo = vkinit::commandBufferSubmitInfo(cmd);
-  VkSubmitInfo2 submit = vkinit::submitInfo(&cmdinfo, nullptr, nullptr);
-
-  VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
-
-  VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, UINT64_MAX));
 }
