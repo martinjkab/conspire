@@ -1,5 +1,6 @@
 #pragma once
 
+#include "concepts/material.h"
 #include "texture.h"
 #include <components/mesh.h>
 #include <components/transform.h>
@@ -23,6 +24,10 @@ struct RenderPlugin : public Plugin {
             STARTUP,
             [](Resource<AssetStore> store) { store->add_type<Texture>(); })
         .addSystem(STARTUP,
+                   [](Resource<AssetStore> store) {
+                     store->add_type<StandardMaterial>();
+                   })
+        .addSystem(STARTUP,
                    [](Resource<RenderEngine> engine,
                       Resource<WindowHandle> windowHandle) {
                      engine->init(windowHandle->window);
@@ -35,7 +40,12 @@ struct RenderPlugin : public Plugin {
                    })
         .addSystem(
             UPDATE,
-            [](Resource<AssetStore> store) { store->loadStaged<Texture>(); })
+            [](Resource<AssetStore> store, Resource<RenderEngine> engine) {
+              auto ctx = engine->getRenderContext();
+              auto uploader = engine->getUploader();
+              store->loadStaged<Texture>(ctx, uploader);
+              store->loadStaged<MeshBuffer>(ctx, uploader);
+            })
         .addSystem(UPDATE,
                    [](Query<Transform, Mesh, MeshMaterial<StandardMaterial>>
                           transformQuery,

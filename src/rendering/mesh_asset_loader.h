@@ -12,6 +12,9 @@
 #include <fastgltf/types.hpp>
 #include <filesystem>
 
+#include "render_context.h"
+#include "uploader.h"
+
 template <>
 AssetTraits<MeshBuffer>::CPUDataType
 AssetLoader<MeshBuffer>::loadCPU(const std::string& path) const {
@@ -55,4 +58,58 @@ AssetLoader<MeshBuffer>::loadCPU(const std::string& path) const {
       [&](glm::vec2 uv, size_t idx) { vertices[idx].tex = uv; });
 
   return {vertices, indices};
+}
+
+template <>
+MeshBuffer AssetLoader<MeshBuffer>::loadGPU(
+    const AssetTraits<MeshBuffer>::CPUDataType& CPUData,
+    const RenderContext& context, const Uploader& uploader) const {
+  const auto& [vertices, indices] = CPUData;
+  const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
+  const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+
+  MeshBuffer buffer;
+  buffer.indexCount = indices.size();
+  buffer.vertexCount = vertices.size();
+
+  buffer.vertexBuffer = context.createBuffer(
+      vertexBufferSize,
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+
+  VkBufferDeviceAddressInfo deviceAddressInfo{
+      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+      .buffer = buffer.vertexBuffer.buffer};
+  buffer.vertexBufferAddress =
+      vkGetBufferDeviceAddress(context.device, &deviceAddressInfo);
+
+  buffer.indexBuffer = context.createBuffer(
+      indexBufferSize,
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+
+  AllocatedBuffer staging = context.createBuffer(
+      vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VMA_MEMORY_USAGE_CPU_ONLY);
+
+  void* data = staging.info.pMappedData;
+  memcpy(data, vertices.data(), vertexBufferSize);
+  memcpy((char*)data + vertexBufferSize, indices.data(), indexBufferSize);
+
+  uploader.immediateSubmit(context, [&](VkCommandBuffer cmd) {
+    VkBufferCopy vertexCopy{
+        .srcOffset = 0, .dstOffset = 0, .size = vertexBufferSize};
+    vkCmdCopyBuffer(cmd, staging.buffer, buffer.vertexBuffer.buffer, 1,
+                    &vertexCopy);
+
+    VkBufferCopy indexCopy{
+        .srcOffset = vertexBufferSize, .dstOffset = 0, .size = indexBufferSize};
+    vkCmdCopyBuffer(cmd, staging.buffer, buffer.indexBuffer.buffer, 1,
+                    &indexCopy);
+  });
+
+  vkDestroyBuffer(context.device, staging.buffer, nullptr);
+
+  return buffer;
 }

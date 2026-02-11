@@ -8,6 +8,11 @@
 
 class Uploader {
 public:
+  Uploader() = default;
+  Uploader(VkCommandBuffer commandBuffer, VkFence fence, VkQueue queue)
+      : _immCommandBuffer(commandBuffer), _immFence(fence),
+        _graphicsQueue(queue) {}
+
   void
   immediateSubmit(const RenderContext& context,
                   std::function<void(VkCommandBuffer cmd)>&& function) const {

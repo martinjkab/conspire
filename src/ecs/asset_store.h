@@ -1,5 +1,6 @@
 #pragma once
 
+#include "render_context.h"
 #include <ecs/asset_handle.h>
 #include <ecs/asset_loader.h>
 
@@ -14,25 +15,26 @@ public:
   AssetStore() {};
 
   template <typename T> AssetHandle<T> load(const std::string& path) {
-    counter<T> += 1;
-    storage<T>[counter<T>] = std::nullopt;
+    auto id = ++counter<T>;
+    storage<T>[id] = std::nullopt;
 
-    std::jthread loadCPUThread([this, &path]() {
+    std::jthread loadCPUThread([this, path, id]() {
       const auto loader = std::any_cast<AssetLoader<T>>(loaders[typeid(T)]);
       const auto data = loader.loadCPU(path);
-      staging_storage<T>[counter<T>] = data;
+      staging_storage<T>[id] = data;
     });
 
-    return AssetHandle<T>{counter<T>};
+    return AssetHandle<T>{id};
   }
 
-  template <typename T> void loadStaged() {
+  template <typename T>
+  void loadStaged(const RenderContext& context, const Uploader& uploader) {
     const auto loader = std::any_cast<AssetLoader<T>>(loaders[typeid(T)]);
-    for (const auto CPUDataTuple : staging_storage<T>) {
-      const auto [id, CPUData] = CPUDataTuple;
-      const auto GPUData = loader.loadGPU(CPUData);
+    for (const auto& [id, CPUData] : staging_storage<T>) {
+      const auto GPUData = loader.loadGPU(CPUData, context, uploader);
       storage<T>[id] = GPUData;
     }
+    staging_storage<T>.clear();
   }
 
   template <typename T> AssetHandle<T> add(T data) {

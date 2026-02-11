@@ -7,6 +7,7 @@
 #include <lodepng.h>
 #include <rendering/engine.h>
 #include <rendering/mesh_buffer.h>
+#include <rendering/render_context.h>
 #include <rendering/render_list.h>
 #include <rendering/texture.h>
 #include <rendering/uniforms/global_uniform.h>
@@ -62,6 +63,14 @@ public:
   MeshBuffer uploadMesh(std::vector<Vertex> vertices,
                         std::vector<uint32_t> indices);
   MeshBuffer uploadGltf(const std::filesystem::path& path);
+
+  RenderContext getRenderContext() const {
+    return RenderContext{_device, _allocator};
+  }
+
+  Uploader getUploader() const {
+    return Uploader{_immCommandBuffer, _immFence, _graphicsQueue};
+  }
 
 private:
   FrameData _frames[FRAME_OVERLAP];
@@ -276,8 +285,8 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
     auto imageSetLayouts = std::vector{_perObjectDescriptorLayout};
     std::vector<VkDescriptorSet> imageSet =
         getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
-    assetStore[item.material].value().uploadUniforms(
-        {assetStore, _device, _defaultSamplerNearest});
+    const auto material = assetStore[item.material].value();
+    material.uploadUniforms({assetStore, _device, _defaultSamplerNearest});
     {
       DescriptorWriter writer;
       AllocatedBuffer uploadbuffer =
