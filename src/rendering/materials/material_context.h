@@ -7,4 +7,5 @@ struct MaterialContext {
   const AssetStore& assetStore;
   const VkDevice& device;
   const VkSampler& defaultSamplerNearest;
+  VkDescriptorSet* targetSet = nullptr;
 };

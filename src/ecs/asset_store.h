@@ -44,12 +44,24 @@ public:
   }
 
   template <typename T>
+  AssetHandle<T> add_staged(typename AssetTraits<T>::CPUDataType data) {
+    auto id = ++counter<T>;
+    storage<T>[id] = std::nullopt;
+    staging_storage<T>[id] = data;
+    return AssetHandle<T>{id};
+  }
+
+  template <typename T>
   std::optional<T> operator[](AssetHandle<T> handle) const {
     return storage<T>.at(handle.id);
   }
 
   template <typename T> void add_type() {
     loaders[typeid(T)] = AssetLoader<T>();
+  }
+
+  template <typename T> void add_loader(AssetLoader<T> loader) {
+    loaders[typeid(T)] = loader;
   }
 
 private:

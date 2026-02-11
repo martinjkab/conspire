@@ -12,6 +12,7 @@
 #include <rendering/components/mesh_material.h>
 #include <rendering/engine.h>
 #include <rendering/materials/standard_material.h>
+#include <rendering/materials/standard_material_loader.h>
 
 struct RenderPlugin : public Plugin {
   void onAdd(App& app) const override {
@@ -32,6 +33,13 @@ struct RenderPlugin : public Plugin {
                       Resource<WindowHandle> windowHandle) {
                      engine->init(windowHandle->window);
                    })
+        .addSystem(
+            STARTUP,
+            [](Resource<AssetStore> store, Resource<RenderEngine> engine) {
+              store->add_loader<StandardMaterial>(AssetLoader<StandardMaterial>(
+                  engine->getMaterialDescriptorLayout(),
+                  engine->getDescriptorAllocator()));
+            })
         .addSystem(STARTUP,
                    [](World& world) {
                      world.addEntity(Transform{glm::mat4(1.0f)},
@@ -45,6 +53,7 @@ struct RenderPlugin : public Plugin {
               auto uploader = engine->getUploader();
               store->loadStaged<Texture>(ctx, uploader);
               store->loadStaged<MeshBuffer>(ctx, uploader);
+              store->loadStaged<StandardMaterial>(ctx, uploader);
             })
         .addSystem(UPDATE,
                    [](Query<Transform, Mesh, MeshMaterial<StandardMaterial>>

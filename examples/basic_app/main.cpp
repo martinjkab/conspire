@@ -27,58 +27,59 @@ int main() {
                    glfwSetInputMode(windowHandle->window, GLFW_CURSOR,
                                     GLFW_CURSOR_DISABLED);
                  })
-      .addSystem(
-          STARTUP,
-          [](Resource<RenderEngine> engine, Resource<AssetStore> assetStore,
-             World& world) {
-            auto mesh =
-                Mesh{assetStore->load<MeshBuffer>("assets/models/rat.glb")};
-            auto texture = MeshMaterial<StandardMaterial>{
-                assetStore->add(StandardMaterial{assetStore->load<Texture>(
-                    "assets/sprites/rat_albedo.png")})};
+      .addSystem(STARTUP,
+                 [](Resource<RenderEngine> engine,
+                    Resource<AssetStore> assetStore, World& world) {
+                   auto mesh = Mesh{
+                       assetStore->load<MeshBuffer>("assets/models/rat.glb")};
+                   auto texture = MeshMaterial<StandardMaterial>{
+                       assetStore->add_staged<StandardMaterial>(
+                           StandardMaterial{assetStore->load<Texture>(
+                               "assets/sprites/rat_albedo.png")})};
 
-            world.addEntity(Transform{glm::translate(glm::mat4{1.0},
-                                                     glm::vec3{0, 0, -75.0})},
-                            mesh, texture);
-          })
-      .addSystem(
-          UPDATE,
-          [](Query<Transform, PerspectiveCamera> transformQuery,
-             Resource<InputState> inputState) {
-            for (auto [transform, camera] : transformQuery) {
-              glm::vec3 direction{0.0f};
-              const float speed = 1.0f;
+                   world.addEntity(Transform{glm::translate(
+                                       glm::mat4{1.0}, glm::vec3{0, 0, -75.0})},
+                                   mesh, texture);
+                 })
+      .addSystem(UPDATE,
+                 [](Query<Transform, PerspectiveCamera> transformQuery,
+                    Resource<InputState> inputState) {
+                   for (auto [transform, camera] : transformQuery) {
+                     glm::vec3 direction{0.0f};
+                     const float speed = 1.0f;
 
-              glm::vec3 forward =
-                  -glm::normalize(glm::vec3(transform->model[2]));
-              glm::vec3 right = glm::normalize(glm::vec3(transform->model[0]));
-              glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+                     glm::vec3 forward =
+                         -glm::normalize(glm::vec3(transform->model[2]));
+                     glm::vec3 right =
+                         glm::normalize(glm::vec3(transform->model[0]));
+                     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 
-              if (inputState->down.test(GLFW_KEY_W)) {
-                direction += forward;
-              }
-              if (inputState->down.test(GLFW_KEY_S)) {
-                direction -= forward;
-              }
-              if (inputState->down.test(GLFW_KEY_A)) {
-                direction -= right;
-              }
-              if (inputState->down.test(GLFW_KEY_D)) {
-                direction += right;
-              }
-              if (inputState->down.test(GLFW_KEY_SPACE)) {
-                direction += up;
-              }
-              if (inputState->down.test(GLFW_KEY_LEFT_SHIFT)) {
-                direction -= up;
-              }
+                     if (inputState->down.test(GLFW_KEY_W)) {
+                       direction += forward;
+                     }
+                     if (inputState->down.test(GLFW_KEY_S)) {
+                       direction -= forward;
+                     }
+                     if (inputState->down.test(GLFW_KEY_A)) {
+                       direction -= right;
+                     }
+                     if (inputState->down.test(GLFW_KEY_D)) {
+                       direction += right;
+                     }
+                     if (inputState->down.test(GLFW_KEY_SPACE)) {
+                       direction += up;
+                     }
+                     if (inputState->down.test(GLFW_KEY_LEFT_SHIFT)) {
+                       direction -= up;
+                     }
 
-              if (glm::length(direction) > 0.0f) {
-                direction = glm::normalize(direction);
-                transform->model[3] += glm::vec4(direction * speed, 0.0f);
-              }
-            }
-          })
+                     if (glm::length(direction) > 0.0f) {
+                       direction = glm::normalize(direction);
+                       transform->model[3] +=
+                           glm::vec4(direction * speed, 0.0f);
+                     }
+                   }
+                 })
       .addSystem(UPDATE,
                  [](Query<Transform, Mesh> transformQuery) {
                    for (auto transformTuple : transformQuery) {

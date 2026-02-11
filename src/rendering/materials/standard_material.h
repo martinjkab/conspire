@@ -6,7 +6,7 @@
 
 struct StandardMaterial {
   AssetHandle<Texture> texture;
-  VkDescriptorSet imageSet;
+  VkDescriptorSet imageSet; // TODO: remove this, use Transient descriptor set
 
   void init(VkDevice device, VkDescriptorSetLayout layout,
             DescriptorAllocator& allocator) {
@@ -14,6 +14,7 @@ struct StandardMaterial {
   }
 
   void uploadUniforms(const MaterialContext& context) const {
+    VkDescriptorSet set = context.targetSet ? *context.targetSet : imageSet;
     auto textureData = context.assetStore[texture].value();
     {
       DescriptorWriter writer;
@@ -21,7 +22,7 @@ struct StandardMaterial {
                         context.defaultSamplerNearest,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-      writer.updateSet(context.device, imageSet);
+      writer.updateSet(context.device, set);
     }
   }
 };

@@ -68,6 +68,14 @@ public:
     return RenderContext{_device, _allocator};
   }
 
+  VkDescriptorSetLayout getMaterialDescriptorLayout() const {
+    return _perObjectDescriptorLayout;
+  }
+
+  DescriptorAllocator* getDescriptorAllocator() {
+    return &globalDescriptorAllocator;
+  }
+
   Uploader getUploader() const {
     return Uploader{_immCommandBuffer, _immFence, _graphicsQueue};
   }
@@ -286,7 +294,8 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
     std::vector<VkDescriptorSet> imageSet =
         getCurrentFrame()._frameDescriptors.allocate(_device, imageSetLayouts);
     const auto material = assetStore[item.material].value();
-    material.uploadUniforms({assetStore, _device, _defaultSamplerNearest});
+    material.uploadUniforms(
+        {assetStore, _device, _defaultSamplerNearest, &imageSet.at(0)});
     {
       DescriptorWriter writer;
       AllocatedBuffer uploadbuffer =
