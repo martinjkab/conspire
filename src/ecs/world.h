@@ -10,9 +10,6 @@
 #include <ecs/utils/vec_to_tuple.h>
 
 #include <any>
-#include <functional>
-#include <iostream>
-#include <map>
 #include <memory>
 #include <tuple>
 #include <type_traits>
@@ -25,7 +22,7 @@ public:
   World() = default;
   ~World() = default;
 
-  template <typename... Args> void addEntity(Args... args) {
+  template <typename... Args> int addEntity(Args... args) {
     static_assert(std::conjunction_v<std::is_base_of<ComponentBase, Args>...>,
                   "All arguments must be Component");
     auto entity_id = entityCounter++;
@@ -40,6 +37,8 @@ public:
            ...);
         },
         std::forward_as_tuple(args...));
+
+    return entity_id;
   }
 
   template <typename T> void addResource(T&& resource) {
