@@ -10,7 +10,9 @@ void App::run() {
       auto begin = std::chrono::high_resolution_clock::now();
 
       runSystems(UPDATE);
-      runSystems(POST_UPDATE);
+      if (running) {
+        runSystems(POST_UPDATE);
+      }
 
       auto end = std::chrono::high_resolution_clock::now();
       auto duration =
@@ -28,9 +30,14 @@ void App::run() {
 
 void App::runSystems(Phase phase) {
   for (auto system : systems[phase]) {
+    if (!running) {
+      break;
+    }
     system();
   }
 }
+
+void App::stop() { running = false; }
 
 App& App::addPlugin(const Plugin& plugin) {
   plugin.onAdd(*this);

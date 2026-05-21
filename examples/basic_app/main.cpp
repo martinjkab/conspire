@@ -27,6 +27,12 @@ int main() {
                    glfwSetInputMode(windowHandle->window, GLFW_CURSOR,
                                     GLFW_CURSOR_DISABLED);
                  })
+      .addSystem(UPDATE,
+                 [](App& app, Resource<InputState> inputState) {
+                   if (inputState->down.test(GLFW_KEY_ESCAPE)) {
+                     app.stop();
+                   }
+                 })
       .addSystem(STARTUP,
                  [](Resource<RenderEngine> engine,
                     Resource<AssetStore> assetStore, World& world) {

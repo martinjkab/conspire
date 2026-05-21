@@ -7,14 +7,17 @@
 #include <type_traits>
 
 struct Plugin;
+class App;
 
 template <typename T>
 concept IsSystemParam =
-    (IsQuery<T> || IsResource<T> || std::is_same_v<T, World&>);
+    (IsQuery<T> || IsResource<T> || std::is_same_v<T, World&> ||
+     std::is_same_v<T, App&>);
 
 class App {
  public:
   void run();
+  void stop();
 
   void runSystems(Phase phase);
 
@@ -64,6 +67,8 @@ class App {
               return this->_world.getResource<ArgType>();
             } else if constexpr (IsQuery<ArgType>) {
               return this->_world.getQuery<ArgType>();
+            } else if constexpr (std::is_same_v<ArgType, App&>) {
+              return (*this);
             } else {
               return (this->_world);
             }

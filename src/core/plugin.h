@@ -16,6 +16,12 @@ struct CorePlugin : public Plugin {
 
     auto window = glfwCreateWindow(800, 600, "CONSPIRE", nullptr, nullptr);
 
-    app.addResource(WindowHandle{window});
+    app.addResource(WindowHandle{window})
+        .addSystem(UPDATE, [](App& app, Resource<WindowHandle> windowHandle) {
+          glfwPollEvents();
+          if (glfwWindowShouldClose(windowHandle->window)) {
+            app.stop();
+          }
+        });
   }
 };

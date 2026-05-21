@@ -148,7 +148,6 @@ void RenderEngine::mainLoop(const AssetStore& assetStore,
                             const RenderList<M>& renderList,
                             const glm::mat4& projection) {
   draw(assetStore, renderList, projection);
-  glfwPollEvents();
 }
 
 template <Material M>
