@@ -25,20 +25,29 @@ public:
   template <typename... Args> int addEntity(Args... args) {
     static_assert(std::conjunction_v<std::is_base_of<ComponentBase, Args>...>,
                   "All arguments must be Component");
-    auto entity_id = entityCounter++;
+    auto entity = entityCounter++;
+
+    addComponent(entity, std::forward<Args>(args)...);
+
+    return entity;
+  }
+
+  template <typename... Args> int addComponent(int entity, Args... args) {
+    static_assert(std::conjunction_v<std::is_base_of<ComponentBase, Args>...>,
+                  "All arguments must be Component");
     std::apply(
-        [this, entity_id](auto&&... args_pack) {
+        [this, entity](auto&&... args_pack) {
           (([&] {
              using T = std::decay_t<decltype(args_pack)>;
              auto& compVec = components.get<T>();
              compVec.push_back(std::make_shared<T>(args_pack));
-             entityToComponentIndex.get<T>()[entity_id] = compVec.size() - 1;
+             entityToComponentIndex.get<T>()[entity] = compVec.size() - 1;
            }()),
            ...);
         },
         std::forward_as_tuple(args...));
 
-    return entity_id;
+    return entity;
   }
 
   template <typename T> void addResource(T&& resource) {
