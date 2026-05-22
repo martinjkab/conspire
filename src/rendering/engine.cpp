@@ -554,15 +554,18 @@ void RenderEngine::drawDebugLines(VkCommandBuffer cmd,
   vertices.reserve(lines.size() * 2);
 
   for (const auto& line : lines) {
-    vertices.push_back(DebugLineVertex{line.a, line.color});
-    vertices.push_back(DebugLineVertex{line.b, line.color});
+    vertices.push_back(DebugLineVertex{glm::vec4(line.a, 1.0f), line.color});
+    vertices.push_back(DebugLineVertex{glm::vec4(line.b, 1.0f), line.color});
   }
 
   auto vertexBuffer = createBuffer(
       vertices.size() * sizeof(DebugLineVertex),
-      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
           VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-      VMA_MEMORY_USAGE_GPU_ONLY);
+      VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+  memcpy(vertexBuffer.info.pMappedData, vertices.data(),
+         vertices.size() * sizeof(DebugLineVertex));
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _debugLinePipeline);
 

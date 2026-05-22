@@ -2,7 +2,7 @@
 #extension GL_EXT_buffer_reference:require
 
 struct Vertex{
-	vec3 position;
+	vec4 position;
 	vec4 color;
 };
 
@@ -22,6 +22,6 @@ layout(location=0)out vec4 outColor;
 
 void main(){
 	Vertex v=PushConstants.vertexBuffer.vertices[gl_VertexIndex];
-	gl_Position=global.projection*vec4(v.position,1.);
+	gl_Position=global.projection*v.position;
 	outColor=v.color;
 }
