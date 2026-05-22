@@ -66,9 +66,15 @@ int main() {
       .addPlugin(InputPlugin{})
       .addPlugin(DebugDrawPlugin{})
       .addSystem(STARTUP,
-                 [](Resource<WindowHandle> windowHandle) {
+                 [](Resource<WindowHandle> windowHandle,
+                    Resource<CursorPosition> cursorPosition) {
                    glfwSetInputMode(windowHandle->window, GLFW_CURSOR,
                                     GLFW_CURSOR_DISABLED);
+
+                   double x;
+                   double y;
+                   glfwGetCursorPos(windowHandle->window, &x, &y);
+                   cursorPosition->position = glm::vec2{x, y};
                  })
       .addSystem(UPDATE,
                  [](App& app, Resource<InputState> inputState) {
@@ -162,15 +168,20 @@ int main() {
                        float yaw = glm::radians(-event.delta.x * sensitivity);
                        float pitch = glm::radians(-event.delta.y * sensitivity);
 
-                       glm::vec3 right =
-                           glm::normalize(glm::vec3(transform->model[0]));
+                       glm::vec4 position = transform->model[3];
 
-                       transform->model = glm::rotate(glm::mat4(1.0f), yaw,
-                                                      glm::vec3(0, 1, 0)) *
-                                          transform->model;
+                       glm::mat4 orientation = transform->model;
+                       orientation[3] = glm::vec4(0, 0, 0, 1);
 
-                       transform->model = glm::rotate(transform->model, pitch,
-                                                      glm::vec3(1, 0, 0));
+                       orientation = glm::rotate(glm::mat4(1.0f), yaw,
+                                                 glm::vec3(0, 1, 0)) *
+                                     orientation;
+
+                       orientation =
+                           glm::rotate(orientation, pitch, glm::vec3(1, 0, 0));
+
+                       transform->model = orientation;
+                       transform->model[3] = position;
                      }
                    }
                  })
