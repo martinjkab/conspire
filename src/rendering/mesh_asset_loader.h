@@ -11,6 +11,7 @@
 #include <fastgltf/tools.hpp>
 #include <fastgltf/types.hpp>
 #include <filesystem>
+#include <limits>
 
 #include "render_context.h"
 #include "uploader.h"
@@ -71,6 +72,18 @@ MeshBuffer AssetLoader<MeshBuffer>::loadGPU(
   MeshBuffer buffer;
   buffer.indexCount = indices.size();
   buffer.vertexCount = vertices.size();
+  buffer.bounds = MeshBounds{.min = glm::vec3{0.0f}, .max = glm::vec3{0.0f}};
+  if (!vertices.empty()) {
+    buffer.bounds = MeshBounds{
+        .min = glm::vec3{std::numeric_limits<float>::max()},
+        .max = glm::vec3{std::numeric_limits<float>::lowest()}};
+
+    for (const auto& vertex : vertices) {
+      const auto position = glm::vec3{vertex.position};
+      buffer.bounds.min = glm::min(buffer.bounds.min, position);
+      buffer.bounds.max = glm::max(buffer.bounds.max, position);
+    }
+  }
 
   buffer.vertexBuffer = context.createBuffer(
       vertexBufferSize,
