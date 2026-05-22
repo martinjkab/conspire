@@ -12,9 +12,51 @@
 #include <rendering/plugin.h>
 #include <rendering/render_list.h>
 
+#include <array>
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <utility>
+
+namespace {
+void drawBoundingBox(DebugDraw& debugDraw, const glm::mat4& model,
+                     const MeshBounds& bounds, const glm::vec4& color) {
+  const std::array<glm::vec3, 8> localCorners{{
+      {bounds.min.x, bounds.min.y, bounds.min.z},
+      {bounds.max.x, bounds.min.y, bounds.min.z},
+      {bounds.min.x, bounds.max.y, bounds.min.z},
+      {bounds.max.x, bounds.max.y, bounds.min.z},
+      {bounds.min.x, bounds.min.y, bounds.max.z},
+      {bounds.max.x, bounds.min.y, bounds.max.z},
+      {bounds.min.x, bounds.max.y, bounds.max.z},
+      {bounds.max.x, bounds.max.y, bounds.max.z},
+  }};
+
+  std::array<glm::vec3, 8> worldCorners{};
+  for (size_t i = 0; i < localCorners.size(); ++i) {
+    worldCorners[i] = glm::vec3{model * glm::vec4{localCorners[i], 1.0f}};
+  }
+
+  constexpr std::array<std::pair<size_t, size_t>, 12> edges{{
+      {0, 1},
+      {1, 3},
+      {3, 2},
+      {2, 0},
+      {4, 5},
+      {5, 7},
+      {7, 6},
+      {6, 4},
+      {0, 4},
+      {1, 5},
+      {2, 6},
+      {3, 7},
+  }};
+
+  for (const auto& [a, b] : edges) {
+    debugDraw.line(worldCorners[a], worldCorners[b], color);
+  }
+}
+}  // namespace
 
 int main() {
   App{}
@@ -22,6 +64,7 @@ int main() {
       .addPlugin(CorePlugin{})
       .addPlugin(RenderPlugin{})
       .addPlugin(InputPlugin{})
+      .addPlugin(DebugDrawPlugin{})
       .addSystem(STARTUP,
                  [](Resource<WindowHandle> windowHandle) {
                    glfwSetInputMode(windowHandle->window, GLFW_CURSOR,
@@ -96,8 +139,18 @@ int main() {
                    }
                  })
       .addSystem(UPDATE,
-                 [](Resource<DebugDraw> debugDraw) {
-                   debugDraw->line({0, 0, -5}, {5, 0, -5}, {1, 0, 0, 1});
+                 [](Resource<AssetStore> assetStore,
+                    Resource<DebugDraw> debugDraw,
+                    Query<Transform, Mesh> transformQuery) {
+                   for (auto [transform, mesh] : transformQuery) {
+                     const auto meshBuffer = (*assetStore)[mesh->getHandle()];
+                     if (!meshBuffer.has_value()) {
+                       continue;
+                     }
+
+                     drawBoundingBox(*debugDraw, transform->model,
+                                     meshBuffer->bounds, {0, 1, 0, 1});
+                   }
                  })
       .addSystem(UPDATE,
                  [](Resource<EventStore<MouseMotion>> mouseMotionStore,
