@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debug/debug_draw.h"
 #include <VkBootstrap.h>
 #include <core/platform.h>
 #include <ecs/asset_store.h>
@@ -32,8 +33,6 @@
 #include <filesystem>
 #include <functional>
 #include <glm/glm.hpp>
-#include <optional>
-#include <string>
 #include <vector>
 
 struct GLFWwindow;
@@ -58,7 +57,7 @@ public:
   void init(GLFWwindow* window);
   template <Material M>
   void mainLoop(const AssetStore& assetStore, const RenderList<M>& renderList,
-                const glm::mat4& projection);
+                const DebugDraw& debugDraw, const glm::mat4& projection);
 
   MeshBuffer uploadMesh(std::vector<Vertex> vertices,
                         std::vector<uint32_t> indices);
@@ -112,6 +111,8 @@ private:
   DescriptorAllocator globalDescriptorAllocator;
   VkPipelineLayout _trianglePipelineLayout;
   VkPipeline _trianglePipeline;
+  VkPipelineLayout _debugLinePipelineLayout;
+  VkPipeline _debugLinePipeline;
   VkSampler _defaultSamplerNearest;
 
   VkDescriptorSetLayout _globalDescriptorLayout;
@@ -127,32 +128,37 @@ private:
   void initSyncStructures();
   template <Material M>
   void draw(const AssetStore& assetStore, const RenderList<M>& renderList,
-            const glm::mat4& projection);
+            const DebugDraw& debugDraw, const glm::mat4& projection);
   template <Material M>
   void drawGeometry(VkCommandBuffer cmd, const AssetStore& assetStore,
-                    const RenderList<M>& renderList,
+                    const RenderList<M>& renderList, const DebugDraw& debugDraw,
                     const glm::mat4& projection);
   void initVulkan();
   void initDescriptors();
   void initPipelines();
   void initTrianglePipeline();
+  void initDebugLinePipeline();
   void cleanup();
   void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
   VkDeviceAddress getBufferDeviceAddress(VkBufferDeviceAddressInfo& info);
   AllocatedBuffer createBuffer(size_t allocSize, VkBufferUsageFlags usage,
                                VmaMemoryUsage memoryUsage);
+  void drawDebugLines(VkCommandBuffer cmd, std::span<const DebugLine> lines,
+                      const glm::mat4& projection);
 };
 
 template <Material M>
 void RenderEngine::mainLoop(const AssetStore& assetStore,
                             const RenderList<M>& renderList,
+                            const DebugDraw& debugDraw,
                             const glm::mat4& projection) {
-  draw(assetStore, renderList, projection);
+  draw(assetStore, renderList, debugDraw, projection);
 }
 
 template <Material M>
 void RenderEngine::draw(const AssetStore& assetStore,
                         const RenderList<M>& renderList,
+                        const DebugDraw& debugDraw,
                         const glm::mat4& projection) {
   VK_CHECK(vkWaitForFences(_device, 1, &getCurrentFrame()._renderFence, true,
                            1000000000));
@@ -182,7 +188,7 @@ void RenderEngine::draw(const AssetStore& assetStore,
   vkutil::transitionImage(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-  drawGeometry(cmd, assetStore, renderList, projection);
+  drawGeometry(cmd, assetStore, renderList, debugDraw, projection);
 
   vkutil::transitionImage(cmd, _drawImage.image,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -232,13 +238,14 @@ template <Material M>
 void RenderEngine::drawGeometry(VkCommandBuffer cmd,
                                 const AssetStore& assetStore,
                                 const RenderList<M>& renderList,
+                                const DebugDraw& debugDraw,
                                 const glm::mat4& projection) {
-  VkClearColorValue clearColorValue{0.0};
+  VkClearColorValue clearColorValue{{0.0}};
   VkClearValue clearValue{.color = clearColorValue};
   VkRenderingAttachmentInfo colorAttachment =
       vkinit::attachmentInfo(_drawImage.imageView, &clearValue,
                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  VkClearColorValue depthClearColorValue{1.0};
+  VkClearColorValue depthClearColorValue{{1.0}};
   VkClearValue depthClearValue{.color = depthClearColorValue};
   VkRenderingAttachmentInfo depthAttachment =
       vkinit::attachmentInfo(_depthImage.imageView, &depthClearValue,
@@ -321,6 +328,8 @@ void RenderEngine::drawGeometry(VkCommandBuffer cmd,
 
     vkCmdDrawIndexed(cmd, bufferData.indexCount, 1, 0, 0, 0);
   }
+
+  drawDebugLines(cmd, debugDraw.lines, projection);
 
   vkCmdEndRendering(cmd);
 }

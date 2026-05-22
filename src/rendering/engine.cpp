@@ -1,3 +1,4 @@
+#include "vulkan/vulkan_core.h"
 #define VMA_IMPLEMENTATION
 
 #include <VkBootstrap.h>
@@ -373,7 +374,10 @@ void RenderEngine::initDescriptors() {
   }
 }
 
-void RenderEngine::initPipelines() { initTrianglePipeline(); }
+void RenderEngine::initPipelines() {
+  initTrianglePipeline();
+  initDebugLinePipeline();
+}
 
 void RenderEngine::initTrianglePipeline() {
   VkShaderModule triangleFragShader;
@@ -447,6 +451,77 @@ void RenderEngine::initTrianglePipeline() {
   vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
 }
 
+void RenderEngine::initDebugLinePipeline() {
+  VkShaderModule debugLineFragShader;
+  static const unsigned char fragmentData[] = {
+#embed "shaders/debug_line.frag.spv"
+  };
+  if (!vkutil::createShaderModule(fragmentData, sizeof(fragmentData), _device,
+                                  &debugLineFragShader)) {
+    fmt::print("Error when building the debugLine fragment shader module");
+  } else {
+    fmt::print("debugLine fragment shader succesfully loaded");
+  }
+
+  VkShaderModule debugLineVertexShader;
+  static const unsigned char vertexData[] = {
+#embed "shaders/debug_line.vert.spv"
+  };
+
+  if (!vkutil::createShaderModule(vertexData, sizeof(vertexData), _device,
+                                  &debugLineVertexShader)) {
+    fmt::print("Error when building the debugLine vertex shader module");
+  } else {
+    fmt::print("debugLine vertex shader succesfully loaded");
+  }
+
+  VkPushConstantRange bufferRange{};
+  bufferRange.offset = 0;
+  bufferRange.size = sizeof(VkDeviceAddress);
+  bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo =
+      vkinit::pipelineLayoutCreateInfo();
+
+  auto layouts = std::array{_globalDescriptorLayout};
+  pipelineLayoutInfo.pSetLayouts = layouts.data();
+  pipelineLayoutInfo.setLayoutCount = layouts.size();
+  pipelineLayoutInfo.pPushConstantRanges = &bufferRange;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+
+  VkSamplerCreateInfo sampler = {.sType =
+                                     VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+
+  sampler.magFilter = VK_FILTER_NEAREST;
+  sampler.minFilter = VK_FILTER_NEAREST;
+
+  vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest);
+
+  VK_CHECK(vkCreatePipelineLayout(_device, &pipelineLayoutInfo, nullptr,
+                                  &_debugLinePipelineLayout));
+
+  PipelineBuilder pipelineBuilder;
+
+  pipelineBuilder._pipelineLayout = _debugLinePipelineLayout;
+  pipelineBuilder.setShaders(debugLineVertexShader, debugLineFragShader);
+  pipelineBuilder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+  pipelineBuilder.setPolygonMode(VK_POLYGON_MODE_FILL);
+  pipelineBuilder.setCullMode(VK_CULL_MODE_BACK_BIT,
+                              VK_FRONT_FACE_COUNTER_CLOCKWISE);
+  pipelineBuilder.setMultisamplingNone();
+  pipelineBuilder.disableBlending();
+  pipelineBuilder.enableDepthtest();
+  // pipelineBuilder.disableDepthtest();
+
+  pipelineBuilder.setColorAttachmentFormat(_drawImage.imageFormat);
+  pipelineBuilder.setDepthFormat(VK_FORMAT_D32_SFLOAT);
+
+  _debugLinePipeline = pipelineBuilder.buildPipeline(_device);
+
+  vkDestroyShaderModule(_device, debugLineFragShader, nullptr);
+  vkDestroyShaderModule(_device, debugLineVertexShader, nullptr);
+}
+
 void RenderEngine::cleanup() {
   for (auto framebuffer : _swapchainFramebuffers) {
     vkDestroyFramebuffer(_device, framebuffer, nullptr);
@@ -467,4 +542,60 @@ void RenderEngine::cleanup() {
   glfwDestroyWindow(_window);
 
   glfwTerminate();
+}
+
+void RenderEngine::drawDebugLines(VkCommandBuffer cmd,
+                                  std::span<const DebugLine> lines,
+                                  const glm::mat4& projection) {
+  if (lines.empty())
+    return;
+
+  std::vector<DebugLineVertex> vertices;
+  vertices.reserve(lines.size() * 2);
+
+  for (const auto& line : lines) {
+    vertices.push_back(DebugLineVertex{line.a, line.color});
+    vertices.push_back(DebugLineVertex{line.b, line.color});
+  }
+
+  auto vertexBuffer = createBuffer(
+      vertices.size() * sizeof(DebugLineVertex),
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _debugLinePipeline);
+
+  auto globalLayouts = std::vector{_globalDescriptorLayout};
+  std::vector<VkDescriptorSet> globalSet =
+      getCurrentFrame()._frameDescriptors.allocate(_device, globalLayouts);
+
+  DescriptorWriter writer;
+
+  AllocatedBuffer uploadbuffer =
+      createBuffer(sizeof(GlobalUniform), VK_BUFFER_USAGE_2_UNIFORM_BUFFER_BIT,
+                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+  GlobalUniform uniform{projection};
+  memcpy(uploadbuffer.info.pMappedData, &uniform, sizeof(GlobalUniform));
+
+  writer.writeBuffer(0, uploadbuffer.buffer, sizeof(GlobalUniform), 0,
+                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+  writer.updateSet(_device, globalSet.at(0));
+
+  vkCmdBindDescriptorSets(
+      cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _debugLinePipelineLayout, 0,
+      static_cast<uint32_t>(globalSet.size()), globalSet.data(), 0, nullptr);
+
+  VkBufferDeviceAddressInfo deviceAddressInfo{
+      .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+      .buffer = vertexBuffer.buffer};
+  VkDeviceAddress vertexBufferAddress =
+      getBufferDeviceAddress(deviceAddressInfo);
+
+  vkCmdPushConstants(cmd, _debugLinePipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
+                     0, sizeof(VkDeviceAddress), &vertexBufferAddress);
+
+  vkCmdDraw(cmd, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 }

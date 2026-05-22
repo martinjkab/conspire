@@ -1,6 +1,7 @@
 #pragma once
 
 #include "concepts/material.h"
+#include "debug/debug_draw_plugin.h"
 #include "texture.h"
 #include <components/mesh.h>
 #include <components/transform.h>
@@ -71,9 +72,10 @@ struct RenderPlugin : public Plugin {
                    [](Resource<RenderList<StandardMaterial>> renderList,
                       Resource<AssetStore> assetStore,
                       Resource<RenderEngine> engine,
+                      Resource<DebugDraw> debugDraw,
                       Query<Transform, PerspectiveCamera> cameraQuery) {
                      const auto [transform, camera] = *(cameraQuery.begin());
-                     engine->mainLoop(*assetStore, *renderList,
+                     engine->mainLoop(*assetStore, *renderList, *debugDraw,
                                       camera->projection() *
                                           glm::inverse(transform->model));
                    })

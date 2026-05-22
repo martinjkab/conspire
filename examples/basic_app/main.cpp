@@ -1,3 +1,4 @@
+#include "debug/debug_draw_plugin.h"
 #include <GLFW/glfw3.h>
 #include <core/plugin.h>
 #include <ecs/app.h>
@@ -14,7 +15,6 @@
 #include <iostream>
 #include <memory>
 #include <thread>
-#include <vulkan/vulkan.hpp>
 
 int main() {
   App{}
@@ -94,6 +94,10 @@ int main() {
                          glm::rotate(transform->model, glm::radians(10.0f),
                                      glm::vec3(0.0f, 1.0f, 0.0f));
                    }
+                 })
+      .addSystem(UPDATE,
+                 [](Resource<DebugDraw> debugDraw) {
+                   debugDraw->line({0, 0, -5}, {5, 0, -5}, {1, 0, 0, 1});
                  })
       .addSystem(UPDATE,
                  [](Resource<EventStore<MouseMotion>> mouseMotionStore,
