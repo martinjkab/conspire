@@ -41,12 +41,19 @@ struct RenderPlugin : public Plugin {
                   engine->getMaterialDescriptorLayout(),
                   engine->getDescriptorAllocator()));
             })
-        .addSystem(STARTUP,
-                   [](World& world) {
-                     world.addEntity(Transform{glm::mat4(1.0f)},
-                                     PerspectiveCamera{glm::radians(90.0f),
-                                                       1.0f, 0.1f, 1000.0f});
-                   })
+        .addSystem(
+            STARTUP,
+            [](World& world, Resource<WindowHandle> windowHandle) {
+              int width;
+              int height;
+              glfwGetFramebufferSize(windowHandle->window, &width, &height);
+
+              world.addEntity(Transform{glm::mat4(1.0f)},
+                              PerspectiveCamera{glm::radians(90.0f),
+                                                static_cast<float>(width) /
+                                                    static_cast<float>(height),
+                                                0.1f, 1000.0f});
+            })
         .addSystem(
             UPDATE,
             [](Resource<AssetStore> store, Resource<RenderEngine> engine) {
@@ -68,7 +75,7 @@ struct RenderPlugin : public Plugin {
                                           transform->model});
                      }
                    })
-        .addSystem(UPDATE,
+        .addSystem(POST_UPDATE,
                    [](Resource<RenderList<StandardMaterial>> renderList,
                       Resource<AssetStore> assetStore,
                       Resource<RenderEngine> engine,
